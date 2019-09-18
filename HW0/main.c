@@ -44,15 +44,18 @@ void read_file_fix_line(bool pos, const std::string &str) {
 }
 
 bool read_file(const std::string &file_name, const std::string &c) {
-  read_file_fix_line(true, file_name);
   std::ifstream infile(file_name);
-  std::string line;
-  while (std::getline(infile, line)) {
-    if (line.compare("exit") == 0)
-      return false;
-    process_line(true, line, c);
-  }
-  read_file_fix_line(false, file_name);
+  if (infile.good()) { // if file exist
+    read_file_fix_line(true, file_name);
+    std::string line;
+    while (std::getline(infile, line)) {
+      if (line.compare("exit") == 0)
+        return false;
+      process_line(true, line, c);
+    }
+    read_file_fix_line(false, file_name);
+  } else
+    std::cout << "File: " << file_name << " does not exist!" << std::endl;
   return true;
 }
 
