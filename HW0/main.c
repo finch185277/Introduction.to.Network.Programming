@@ -33,17 +33,17 @@ void gen_many_icon(int n, char c) {
     std::cout << c;
 }
 
-void read_file_fix_line(bool pos, const std::string &str) {
+void read_file_fix_line(bool pos, const char *file_name) {
   gen_many_icon(15, '-');
   if (pos) // first line or end line
-    std::cout << "Input file " << str;
+    std::cout << "Input file " << file_name;
   else
-    std::cout << "End of input file " << str;
+    std::cout << "End of input file " << file_name;
   gen_many_icon(15, '-');
   std::cout << std::endl;
 }
 
-bool read_file(const std::string &file_name, const std::string &c) {
+bool read_file(const char *file_name, const std::string &c) {
   std::ifstream infile(file_name);
   if (infile.good()) { // if file exist
     read_file_fix_line(true, file_name);
