@@ -1,10 +1,11 @@
 #include <algorithm>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <sstream>
-#include <string>
+#include <vector>
 
-void process_line(bool is_file, std::string &line, const std::string &c) {
+void process_line(bool is_file, std::string &line, const char *del) {
   std::istringstream iss(line);
   std::string option, target;
   iss >> option >> target;
@@ -14,15 +15,17 @@ void process_line(bool is_file, std::string &line, const std::string &c) {
     std::reverse(target.begin(), target.end());
     std::cout << target;
   } else if (option.compare("split") == 0) {
-    std::istringstream tar(target);
-    std::string s;
     bool first_substr = true;
-    while (std::getline(tar, s, c[0])) {
+    std::vector<char> tar(target.begin(), target.end());
+    tar.push_back('\0');
+    char *token = std::strtok(&*tar.begin(), del);
+    while (token != nullptr) {
       if (first_substr) { // prevent print more space
         first_substr = false;
-        std::cout << s;
+        std::cout << token;
       } else
-        std::cout << ' ' << s;
+        std::cout << ' ' << token;
+      token = std::strtok(nullptr, del);
     }
   }
   std::cout << std::endl;
@@ -43,7 +46,7 @@ void read_file_fix_line(bool pos, const char *file_name) {
   std::cout << std::endl;
 }
 
-bool read_file(const char *file_name, const std::string &c) {
+bool read_file(const char *file_name, const char *del) {
   std::ifstream infile(file_name);
   if (infile.good()) { // if file exist
     read_file_fix_line(true, file_name);
@@ -51,7 +54,7 @@ bool read_file(const char *file_name, const std::string &c) {
     while (std::getline(infile, line)) {
       if (line.compare("exit") == 0)
         return false;
-      process_line(true, line, c);
+      process_line(true, line, del);
     }
     read_file_fix_line(false, file_name);
   } else
@@ -59,7 +62,7 @@ bool read_file(const char *file_name, const std::string &c) {
   return true;
 }
 
-void user_interface(const std::string &c) {
+void user_interface(const char *del) {
   gen_many_icon(15, '*');
   std::cout << "User input";
   gen_many_icon(15, '*');
@@ -68,7 +71,7 @@ void user_interface(const std::string &c) {
   while (std::getline(std::cin, line)) {
     if (line.compare("exit") == 0)
       break; // end this block
-    process_line(false, line, c);
+    process_line(false, line, del);
   }
 }
 
