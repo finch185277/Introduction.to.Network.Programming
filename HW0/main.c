@@ -5,38 +5,46 @@
 #include <sstream>
 #include <vector>
 
-void process_line(bool is_file, std::string &line, const char *del) {
+void word_reverse(std::string &target) {
+  std::reverse(target.begin(), target.end());
+  std::cout << target;
+}
+
+void word_split(const std::string &target, const char *del) {
+  bool first_substr = true;
+  std::vector<char> tar(target.begin(), target.end());
+  tar.push_back('\0');
+  char *token = std::strtok(&*tar.begin(), del);
+  while (token != nullptr) {
+    if (first_substr) { // prevent print more space
+      first_substr = false;
+      std::cout << token;
+    } else
+      std::cout << ' ' << token;
+    token = std::strtok(nullptr, del);
+  }
+}
+
+void process_line(const bool is_file, const std::string &line,
+                  const char *del) {
   std::istringstream iss(line);
   std::string option, target;
   iss >> option >> target;
   if (is_file) // only file need to print context
     std::cout << option << " " << target << std::endl;
-  if (option.compare("reverse") == 0) {
-    std::reverse(target.begin(), target.end());
-    std::cout << target;
-  } else if (option.compare("split") == 0) {
-    bool first_substr = true;
-    std::vector<char> tar(target.begin(), target.end());
-    tar.push_back('\0');
-    char *token = std::strtok(&*tar.begin(), del);
-    while (token != nullptr) {
-      if (first_substr) { // prevent print more space
-        first_substr = false;
-        std::cout << token;
-      } else
-        std::cout << ' ' << token;
-      token = std::strtok(nullptr, del);
-    }
-  }
+  if (option.compare("reverse") == 0)
+    word_reverse(target);
+  else if (option.compare("split") == 0)
+    word_split(target, del);
   std::cout << std::endl;
 }
 
-void gen_many_icon(int n, char c) {
+void gen_many_icon(int n, const char c) {
   while (n--)
     std::cout << c;
 }
 
-void read_file_fix_line(bool pos, const char *file_name) {
+void read_file_fix_line(const bool pos, const char *file_name) {
   gen_many_icon(15, '-');
   if (pos) // first line or end line
     std::cout << "Input file " << file_name;
