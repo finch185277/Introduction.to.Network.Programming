@@ -1,10 +1,8 @@
-<div id="doc" class="markdown-body container-fluid comment-enabled" data-hard-breaks="true" style="position: relative;">
+# Homework 1 Specification
 
-# [<span class="octicon octicon-link"></span>](#Homework-1-Specification "Homework-1-Specification")Homework 1 Specification
+###### tags: `inp`
 
-###### [<span class="octicon octicon-link"></span>](#tags-inp "tags-inp")tags: `inp`
-
-## [<span class="octicon octicon-link"></span>](#Overview "Overview")Overview
+## Overview
 
 In this homework, you are required to write two programs, a client and a server, to build a chat room system. The clients talk to one another through the server. The server accepts connections from the clients and processes the command from the clients.
 
@@ -15,9 +13,9 @@ It is suggested that you use **select()** for constructing the client and the se
 
 </div>
 
-## [<span class="octicon octicon-link"></span>](#Specification "Specification")Specification
+## Specification
 
-### [<span class="octicon octicon-link"></span>](#Server "Server")Server
+### Server
 
 *   The command to start the server  
     `./server <SERVER PORT>`
@@ -25,7 +23,7 @@ It is suggested that you use **select()** for constructing the client and the se
 If the number of arguments is not one, the server program should terminates.  
 The server can serve multiple clients simultaneously. Once a connection is established, the server will send a hello message to the client and give the client a username `anonymous`. The client can send different commands to the server. The messages transmitted between clients and the server are shown below.
 
-#### [<span class="octicon octicon-link"></span>](#Hello-Message "Hello-Message")Hello Message
+#### Hello Message
 
 When a client connects to the server, the server will send a hello message to the client and then broadcasts this user’s presence to other clients.
 
@@ -37,7 +35,7 @@ When a client connects to the server, the server will send a hello message to th
 
 * * *
 
-#### [<span class="octicon octicon-link"></span>](#Offline-Message "Offline-Message")Offline Message
+#### Offline Message
 
 When a client disconnect from the server, the server will send an offline message to all the other online clients to tell them someone has been offline.
 
@@ -46,7 +44,7 @@ When a client disconnect from the server, the server will send an offline messag
 
 * * *
 
-#### [<span class="octicon octicon-link"></span>](#Who-Message "Who-Message")Who Message
+#### Who Message
 
 A client can type command below to list all online users.
 
@@ -63,7 +61,7 @@ The server will reply to sender a list of online users and tag the sender client
 
 * * *
 
-#### [<span class="octicon octicon-link"></span>](#Change-Username-Message "Change-Username-Message")Change Username Message
+#### Change Username Message
 
 A client can type the command below to change his/her username.
 
@@ -105,7 +103,7 @@ A user can be rename as itself, that is, when **userA** wants to rename as **use
 
 * * *
 
-#### [<span class="octicon octicon-link"></span>](#Private-Message "Private-Message")Private Message
+#### Private Message
 
 A client can send a private message to a specific client.
 
@@ -135,7 +133,7 @@ Otherwise, the server sends the private message to the specific client and sends
 
 * * *
 
-#### [<span class="octicon octicon-link"></span>](#Broadcast-Message "Broadcast-Message")Broadcast Message
+#### Broadcast Message
 
 A client can send a broadcast message to all clients.
 
@@ -149,7 +147,7 @@ While receiving the command from a user, the server will add `<SENDER's USERNAME
 
 * * *
 
-#### [<span class="octicon octicon-link"></span>](#Error-Command "Error-Command")Error Command
+#### Error Command
 
 Commands which haven’t been declared above are invalid commands. When a server receives an invalid command, it should send an error message back to the sending client.
 
@@ -158,7 +156,7 @@ Commands which haven’t been declared above are invalid commands. When a server
 
 * * *
 
-### [<span class="octicon octicon-link"></span>](#Client "Client")Client
+### Client
 
 A client cannot connect to more than one server at the same time.  
 Users should give the server IP and the port as the arguments of the client program.  
@@ -169,7 +167,7 @@ If the number of arguments is not two, the client program should terminates.
 
 * * *
 
-#### [<span class="octicon octicon-link"></span>](#Exit-Command "Exit-Command")Exit Command
+#### Exit Command
 
 The user can type the command below to terminate the process at any time.
 
@@ -185,7 +183,7 @@ This command should be process by the client locally. That is, the client should
 
 * * *
 
-#### [<span class="octicon octicon-link"></span>](#Receive-amp-Display-Format "Receive-amp-Display-Format")Receive & Display Format
+#### Receive & Display Format
 
 The clients keep receiving commands from stdin and, except for “exit” command, send those to the server directly without any modification.
 
@@ -196,7 +194,7 @@ For messages received from stdin, client can only process the exit command, othe
 
 </div>
 
-## [<span class="octicon octicon-link"></span>](#Requirement "Requirement")Requirement
+## Requirement
 
 1.  All messages transmitted between the server and the clients should end with a newline (’\n’).
 2.  The clients should send commands received from stdin to server directly without modification.
@@ -206,9 +204,9 @@ For messages received from stdin, client can only process the exit command, othe
 6.  There will be no more than **10** clients connecting to a server in one time.
 7.  All the code should be successfully compiled and run on the workstations.
 
-## [<span class="octicon octicon-link"></span>](#Grading-Policy "Grading-Policy")Grading Policy
+## Grading Policy
 
-### [<span class="octicon octicon-link"></span>](#Features "Features")Features
+### Features
 
 *   hello: 10%
 *   exit / offline message: 10%
@@ -225,14 +223,14 @@ Each feature should be totally correct so that you can get full score for that f
 
 </div>
 
-### [<span class="octicon octicon-link"></span>](#Penalty "Penalty")Penalty
+### Penalty
 
 *   Incorrect upload format (wrong directory structures, wrong file names etc.): -10%
 *   Fail to `make` or `make test`: -10%
-*   Late submission: final score = original score * (3/4) ^ #_late_days
+*   Late submission: final score = `original score * (3/4) ^ #_late_days`
 *   Cannot compile or run on the workstations: -20%
 
-### [<span class="octicon octicon-link"></span>](#Testing-Flow "Testing-Flow")Testing Flow
+### Testing Flow
 
 *   A test program is provided by TA. You should make sure your program is able to pass all the test cases.
 *   The `test.c` file provided by TA should be included in your submission. You can modify it, but we will replace it with the original version while scoring.
@@ -258,7 +256,7 @@ Each feature should be totally correct so that you can get full score for that f
     clean:
         rm -f server client test
 
-## [<span class="octicon octicon-link"></span>](#Submission "Submission")Submission
+## Submission
 
 *   Due date: **2019/11/7 Thu. 23:59**
 *   Hand-in format: **<Student ID>.zip**
@@ -267,15 +265,15 @@ Each feature should be totally correct so that you can get full score for that f
 *   It’s not necessary to upload your binaries as well since we will recompile your code from the sources.
 *   The `test.c` and `Makefile` are the only two files that must be in your submission. Feel free to add your own header files or set the file name yourselves. Remember to modify the `Makefile` to fit it into your program structure.
 *   Sample directory structure before `make`.
-
+```
     /
     ├── client.c
     ├── server.c
     ├── test.c        # test program provided by TA
     └── Makefile      # your makefile, please refer to the sample provided by TA
-
+```
 *   Sample directory structure after `make && make test`
-
+```
     /
     ├── client.c
     ├── server.c
@@ -284,63 +282,9 @@ Each feature should be totally correct so that you can get full score for that f
     ├── server        # server binary, must be generated by 'make' command
     ├── test          # test binary, must be generated by 'make test' command, must be in the same directory as server and client
     └── Makefile      # your makefile, please refer to the sample provided by TA
-
-## [<span class="octicon octicon-link"></span>](#Demo "Demo")Demo
+```
+## Demo
 
 The demo will be announced later. You will be asked to explain your implementation and make some changes to your program.  
 **Please remember to select your demo time after we announce!**  
-If your name doesn’t exist on our demo form, you won’t be allowed to demo your homework.
-
-</div>
-
-<div class="ui-toc dropup unselectable hidden-print" style="display:none;">
-
-<div class="pull-right dropdown">[](# "Table of content")
-
-<div class="toc">
-
-*   [Homework 1 Specification](#Homework-1-Specification "Homework 1 Specification")
-    *   [Overview](#Overview "Overview")
-    *   [Specification](#Specification "Specification")
-        *   [Server](#Server "Server")
-        *   [Client](#Client "Client")
-    *   [Requirement](#Requirement "Requirement")
-    *   [Grading Policy](#Grading-Policy "Grading Policy")
-        *   [Features](#Features "Features")
-        *   [Penalty](#Penalty "Penalty")
-        *   [Testing Flow](#Testing-Flow "Testing Flow")
-    *   [Submission](#Submission "Submission")
-    *   [Demo](#Demo "Demo")
-
-</div>
-
-<div class="toc-menu">[全部展開](#)[回到頂部](#)[移至底部](#)</div>
-
-</div>
-
-</div>
-
-<div id="ui-toc-affix" class="ui-affix-toc ui-toc-dropdown unselectable hidden-print" data-spy="affix" style="top:17px;display:none;" null="">
-
-<div class="toc">
-
-*   [Homework 1 Specification](#Homework-1-Specification "Homework 1 Specification")
-    *   [Overview](#Overview "Overview")
-    *   [Specification](#Specification "Specification")
-        *   [Server](#Server "Server")
-        *   [Client](#Client "Client")
-    *   [Requirement](#Requirement "Requirement")
-    *   [Grading Policy](#Grading-Policy "Grading Policy")
-        *   [Features](#Features "Features")
-        *   [Penalty](#Penalty "Penalty")
-        *   [Testing Flow](#Testing-Flow "Testing Flow")
-    *   [Submission](#Submission "Submission")
-    *   [Demo](#Demo "Demo")
-
-</div>
-
-<div class="toc-menu">[全部展開](#)[回到頂部](#)[移至底部](#)</div>
-
-</div>
-
-<script>var markdown = $(".markdown-body"); //smooth all hash trigger scrolling function smoothHashScroll() { var hashElements = $("a[href^='#']").toArray(); for (var i = 0; i < hashElements.length; i++) { var element = hashElements[i]; var $element = $(element); var hash = element.hash; if (hash) { $element.on('click', function (e) { // store hash var hash = this.hash; if ($(hash).length <= 0) return; // prevent default anchor click behavior e.preventDefault(); // animate $('body, html').stop(true, true).animate({ scrollTop: $(hash).offset().top }, 100, "linear", function () { // when done, add hash to url // (default click behaviour) window.location.hash = hash; }); }); } } } smoothHashScroll(); var toc = $('.ui-toc'); var tocAffix = $('.ui-affix-toc'); var tocDropdown = $('.ui-toc-dropdown'); //toc tocDropdown.click(function (e) { e.stopPropagation(); }); var enoughForAffixToc = true; function generateScrollspy() { $(document.body).scrollspy({ target: '' }); $(document.body).scrollspy('refresh'); if (enoughForAffixToc) { toc.hide(); tocAffix.show(); } else { tocAffix.hide(); toc.show(); } $(document.body).scroll(); } function windowResize() { //toc right var paddingRight = parseFloat(markdown.css('padding-right')); var right = ($(window).width() - (markdown.offset().left + markdown.outerWidth() - paddingRight)); toc.css('right', right + 'px'); //affix toc left var newbool; var rightMargin = (markdown.parent().outerWidth() - markdown.outerWidth()) / 2; //for ipad or wider device if (rightMargin >= 133) { newbool = true; var affixLeftMargin = (tocAffix.outerWidth() - tocAffix.width()) / 2; var left = markdown.offset().left + markdown.outerWidth() - affixLeftMargin; tocAffix.css('left', left + 'px'); } else { newbool = false; } if (newbool != enoughForAffixToc) { enoughForAffixToc = newbool; generateScrollspy(); } } $(window).resize(function () { windowResize(); }); $(document).ready(function () { windowResize(); generateScrollspy(); }); //remove hash function removeHash() { window.location.hash = ''; } var backtotop = $('.back-to-top'); var gotobottom = $('.go-to-bottom'); backtotop.click(function (e) { e.preventDefault(); e.stopPropagation(); if (scrollToTop) scrollToTop(); removeHash(); }); gotobottom.click(function (e) { e.preventDefault(); e.stopPropagation(); if (scrollToBottom) scrollToBottom(); removeHash(); }); var toggle = $('.expand-toggle'); var tocExpand = false; checkExpandToggle(); toggle.click(function (e) { e.preventDefault(); e.stopPropagation(); tocExpand = !tocExpand; checkExpandToggle(); }) function checkExpandToggle () { var toc = $('.ui-toc-dropdown .toc'); var toggle = $('.expand-toggle'); if (!tocExpand) { toc.removeClass('expand'); toggle.text('Expand all'); } else { toc.addClass('expand'); toggle.text('Collapse all'); } } function scrollToTop() { $('body, html').stop(true, true).animate({ scrollTop: 0 }, 100, "linear"); } function scrollToBottom() { $('body, html').stop(true, true).animate({ scrollTop: $(document.body)[0].scrollHeight }, 100, "linear"); }</script>
+If your name don’t exist on our demo form, you won’t be allowed to demo your homework.
