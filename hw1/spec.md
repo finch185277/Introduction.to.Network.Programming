@@ -235,13 +235,13 @@ Each feature should be totally correct so that you can get full score for that f
 *   A test program is provided by TA. You should make sure your program is able to pass all the test cases.
 *   The `test.c` file provided by TA should be included in your submission. You can modify it, but we will replace it with the original version while scoring.
 *   We will use the following command to test your program.
-
+```
     make
     make test
-
+```
 *   Sample Makefile  
     You should make sure the `make` command will generate both client and server binaries, and the `make test` command will generate the test binary and run the tests.
-
+```
     # you can modify this section
     all:
         gcc -o client client.c
@@ -255,6 +255,7 @@ Each feature should be totally correct so that you can get full score for that f
     # you can modify this section
     clean:
         rm -f server client test
+```
 
 ## Submission
 
