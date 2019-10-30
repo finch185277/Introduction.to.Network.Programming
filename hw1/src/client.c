@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
         break;
       }
       buf[n] = '\0';
-      fprintf(stdout, "%s\n", buf);
+      fprintf(stdout, "%s", buf);
     }
   }
 
