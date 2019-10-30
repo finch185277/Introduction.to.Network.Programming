@@ -9,12 +9,12 @@
 #define CLIENT_MAX 10
 #define LINE_MAX 1024
 
-struct Client {
+typedef struct Client {
   int fd;
   char name[16];
   char ip[16];
   int port;
-};
+} Client;
 
 void msg_send(int fd, char *msg) {
   char buf[LINE_MAX];
@@ -128,13 +128,119 @@ void cmd_who(struct Client *clients, int idx, int idx_bound) {
   }
 }
 
+void def_cmd(struct Client *clients, int idx, int idx_bound, char *cmd) {
+  char *pos = strtok(cmd, " \n");
+  if (!pos) {
+    ;
+  } else if (strcmp(pos, "who") == 0) {
+    pos = strtok(NULL, "\n");
+    if (!pos) {
+      cmd_who(clients, idx, idx_bound);
+      return;
+    }
+  } else if (strcmp(pos, "name") == 0) {
+    pos = strtok(NULL, "\n");
+    if (pos) {
+      cmd_name(clients, idx, idx_bound, pos);
+      return;
+    }
+  } else if (strcmp(pos, "yell") == 0) {
+    pos = strtok(NULL, "\n");
+    if (pos) {
+      cmd_yell(clients, idx, idx_bound, pos);
+      return;
+    }
+  } else if (strcmp(pos, "tell") == 0) {
+    pos = strtok(NULL, " \n");
+    if (pos) {
+      char *m = strtok(NULL, "\n");
+      if (m) {
+        cmd_tell(clients, idx, idx_bound, pos, m);
+        return;
+      }
+    }
+  }
+  msg_send(clients[idx].fd, "ERROR: Error command.");
+}
+
 int main(int argc, char **argv) {
   if (argc != 2) {
     printf("Usage: %s <SERVER PORT>\n", argv[0]);
     exit(0);
   }
 
+  int listen_fd;
+  int idx_bound = 0;
   struct Client clients[CLIENT_MAX];
+
+  struct sockaddr_in listen_addr;
+  memset(&listen_addr, 0, sizeof(listen_addr));
+  listen_addr.sin_family = AF_INET;
+  listen_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  listen_addr.sin_port = htons(atoi(argv[1]));
+
+  listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+
+  bind(listen_fd, (struct sockaddr *)&listen_addr, sizeof(listen_addr));
+
+  listen(listen_fd, 1024);
+
+  fd_set all_set, r_set;
+  FD_SET(listen_fd, &all_set);
+  int max_fd = listen_fd + 1;
+
+  for (;;) {
+    r_set = all_set;
+    int nready = select(max_fd, &r_set, NULL, NULL, NULL);
+    if (FD_ISSET(listen_fd, &r_set)) {
+      struct sockaddr_in cli_addr;
+      int cli_len = sizeof(cli_addr);
+      int cli_fd = accept(listen_fd, (struct sockaddr *)&cli_addr, &cli_len);
+      msg_broadcast(clients, idx_bound, "Someone is coming!");
+      int idx = 0;
+      for (; idx < CLIENT_MAX; idx++) {
+        if (clients[idx].fd < 0) {
+          clients[idx].fd = cli_fd;
+          break;
+        }
+      }
+
+      user_come(clients, idx, &cli_addr);
+
+      if (idx == CLIENT_MAX) {
+        printf("Chat Room is full!\n");
+        exit(0);
+      }
+      if (idx > idx_bound) {
+        idx_bound = idx;
+      }
+      if (cli_fd >= max_fd) {
+        max_fd = cli_fd + 1;
+      }
+      FD_SET(cli_fd, &all_set);
+      if (--nready)
+        continue;
+    }
+
+    int idx = 0;
+    for (; idx <= idx_bound && nready; idx++) {
+      if (FD_ISSET(clients[idx].fd, &r_set)) {
+        --nready;
+
+        char buf[LINE_MAX];
+        int n = read(clients[idx].fd, buf, LINE_MAX - 1);
+        if (n != 0) {
+          buf[n] = '\0';
+          def_cmd(clients, idx, idx_bound, buf);
+        } else {
+          close(clients[idx].fd);
+          FD_CLR(clients[idx].fd, &all_set);
+          clients[idx].fd = -1;
+          user_leave(clients, idx, idx_bound);
+        }
+      }
+    }
+  }
 
   return 0;
 }
