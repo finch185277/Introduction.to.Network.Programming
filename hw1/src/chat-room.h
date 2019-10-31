@@ -1,3 +1,9 @@
+#include <arpa/inet.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 #define CLIENT_MAX 10
 #define LINE_MAX 1024
 
@@ -11,8 +17,9 @@ struct Client {
 void msg_unicast(int fd, char *msg);
 void msg_broadcast(struct Client *clients, int idx_bound, char *msg);
 
-void user_come(struct Client *clients, int idx);
-void user_leave(struct Client *clients, int idx, int idx_bound);
+void user_sign_in(struct Client *clients, int idx, int idx_bound, int cli_fd,
+                  struct sockaddr_in *cli_addr);
+void user_sign_out(struct Client *clients, int idx, int idx_bound);
 
 void cmd_who(struct Client *clients, int idx, int idx_bound);
 void cmd_name(struct Client *clients, int idx, int idx_bound, char *name);

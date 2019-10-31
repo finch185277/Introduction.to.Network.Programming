@@ -1,7 +1,4 @@
 #include "chat-room.h"
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
 
 void msg_unicast(int fd, char *msg) {
   char buf[LINE_MAX];
@@ -15,18 +12,25 @@ void msg_broadcast(struct Client *clients, int idx_bound, char *msg) {
       msg_unicast(clients[i].fd, msg);
 }
 
-void user_come(struct Client *clients, int idx) {
+void user_sign_in(struct Client *clients, int idx, int idx_bound, int cli_fd,
+                  struct sockaddr_in *cli_addr) {
   char buf[LINE_MAX];
+  msg_broadcast(clients, idx_bound, "Someone is coming!");
 
+  clients[idx].fd = cli_fd;
   strcpy(clients[idx].name, "anonymous");
+  inet_ntop(AF_INET, &cli_addr->sin_addr, clients[idx].ip,
+            sizeof(clients[idx].ip));
+  clients[idx].port = ntohs(cli_addr->sin_port);
 
   sprintf(buf, "Hello, anonymous! From: %s:%d", clients[idx].ip,
           clients[idx].port);
   msg_unicast(clients[idx].fd, buf);
 }
 
-void user_leave(struct Client *clients, int idx, int idx_bound) {
+void user_sign_out(struct Client *clients, int idx, int idx_bound) {
   char buf[LINE_MAX];
+  clients[idx].fd = -1;
   sprintf(buf, "%s is offline.", clients[idx].name);
   msg_broadcast(clients, idx_bound, buf);
 }

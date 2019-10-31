@@ -53,14 +53,7 @@ int main(int argc, char **argv) {
         msg_unicast(cli_fd, "Chat room now is full!");
         close(cli_fd);
       } else {
-        msg_broadcast(clients, idx_bound, "Someone is coming!");
-
-        clients[idx].fd = cli_fd;
-        inet_ntop(AF_INET, &cli_addr.sin_addr, clients[idx].ip,
-                  sizeof(clients[idx].ip));
-        clients[idx].port = ntohs(cli_addr.sin_port);
-
-        user_come(clients, idx);
+        user_sign_in(clients, idx, idx_bound, cli_fd, &cli_addr);
 
         if (idx > idx_bound)
           idx_bound = idx;
@@ -80,10 +73,9 @@ int main(int argc, char **argv) {
           buf[n] = '\0';
           def_cmd(clients, idx, idx_bound, buf);
         } else {
+          user_sign_out(clients, idx, idx_bound);
           close(clients[idx].fd);
           FD_CLR(clients[idx].fd, &new_set);
-          clients[idx].fd = -1;
-          user_leave(clients, idx, idx_bound);
         }
         nready--;
       }
