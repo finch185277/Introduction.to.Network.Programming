@@ -116,11 +116,13 @@ void cmd_who(struct Client *clients, int idx, int idx_bound) {
   for (int i = 0; i <= idx_bound; i++) {
     if (clients[i].fd >= 0) {
       char buf[LINE_MAX];
-      sprintf(buf, "%s %s:%d", clients[idx].name, clients[idx].ip,
-              clients[idx].port);
       if (i == idx)
-        strcat(buf, " ->me");
-      msg_send(clients[i].fd, buf);
+        sprintf(buf, "%s %s:%d ->me", clients[idx].name, clients[idx].ip,
+                clients[idx].port);
+      else
+        sprintf(buf, "%s %s:%d", clients[idx].name, clients[idx].ip,
+                clients[idx].port);
+      msg_send(clients[idx].fd, buf);
     }
   }
 }
