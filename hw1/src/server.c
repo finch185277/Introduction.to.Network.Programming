@@ -28,13 +28,10 @@ void msg_broadcast(struct Client *clients, int idx_bound, char *msg) {
       msg_send(clients[i].fd, msg);
 }
 
-void user_come(struct Client *clients, int idx, struct sockaddr_in *cli_addr) {
+void user_come(struct Client *clients, int idx) {
   char buf[LINE_MAX];
 
   strcpy(clients[idx].name, "anonymous");
-  inet_ntop(AF_INET, &cli_addr->sin_addr, clients[idx].ip,
-            sizeof(clients[idx].ip));
-  clients[idx].port = ntohs(cli_addr->sin_port);
 
   sprintf(buf, "Hello, anonymous! From: %s:%d", clients[idx].ip,
           clients[idx].port);
@@ -172,6 +169,8 @@ int main(int argc, char **argv) {
   int listen_fd;
   int idx_bound = 0;
   struct Client clients[CLIENT_MAX];
+  for (int i = 0; i < CLIENT_MAX; i++)
+    clients[i].fd = -1;
 
   struct sockaddr_in listen_addr;
   memset(&listen_addr, 0, sizeof(listen_addr));
@@ -192,6 +191,7 @@ int main(int argc, char **argv) {
   for (;;) {
     r_set = all_set;
     int nready = select(max_fd, &r_set, NULL, NULL, NULL);
+
     if (FD_ISSET(listen_fd, &r_set)) {
       struct sockaddr_in cli_addr;
       int cli_len = sizeof(cli_addr);
@@ -205,7 +205,10 @@ int main(int argc, char **argv) {
         }
       }
 
-      user_come(clients, idx, &cli_addr);
+      inet_ntop(AF_INET, &cli_addr.sin_addr, clients[idx].ip,
+                sizeof(clients[idx].ip));
+      clients[idx].port = ntohs(cli_addr.sin_port);
+      user_come(clients, idx);
 
       if (idx == CLIENT_MAX) {
         printf("Chat Room is full!\n");
