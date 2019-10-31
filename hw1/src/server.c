@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
           break;
 
       if (idx == CLIENT_MAX) {
-        msg_send(cli_fd, "Chat room now is full!");
+        msg_unicast(cli_fd, "Chat room now is full!");
         close(cli_fd);
       } else {
         msg_broadcast(clients, idx_bound, "Someone is coming!");
