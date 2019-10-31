@@ -72,7 +72,6 @@ void cmd_name(struct Client *clients, int idx, int idx_bound, char *name) {
                 "ERROR: Username can only consists of 2~12 English letters.");
     return;
   }
-
   char buf[LINE_MAX];
 
   sprintf(buf, "You're now known as %s.", name);
@@ -101,9 +100,7 @@ void cmd_tell(struct Client *clients, int idx, int idx_bound, char *name,
   for (int i = 0; i <= idx_bound; i++) {
     if (clients[i].fd >= 0 && strcmp(clients[i].name, name) == 0) {
       char buf[LINE_MAX];
-
       msg_unicast(clients[idx].fd, "SUCCESS: Your message has been sent.");
-
       sprintf(buf, "%s tell you %s", clients[idx].name, msg);
       msg_unicast(clients[i].fd, buf);
       return;
@@ -119,34 +116,34 @@ void cmd_yell(struct Client *clients, int idx, int idx_bound, char *msg) {
 }
 
 void def_cmd(struct Client *clients, int idx, int idx_bound, char *cmd) {
-  char *pos = strtok(cmd, " \n");
-  if (!pos) {
-    ;
-  } else if (strcmp(pos, "who") == 0) {
-    pos = strtok(NULL, "\n");
-    if (!pos) {
+  char *tok = strtok(cmd, " \n");
+  if (!tok) {
+    msg_unicast(clients[idx].fd, "ERROR: Error command.");
+  } else if (strcmp(tok, "who") == 0) {
+    tok = strtok(NULL, "\n");
+    if (!tok) {
       cmd_who(clients, idx, idx_bound);
       return;
     }
-  } else if (strcmp(pos, "name") == 0) {
-    pos = strtok(NULL, "\n");
-    if (pos) {
-      cmd_name(clients, idx, idx_bound, pos);
+  } else if (strcmp(tok, "name") == 0) {
+    tok = strtok(NULL, "\n");
+    if (tok) {
+      cmd_name(clients, idx, idx_bound, tok);
       return;
     }
-  } else if (strcmp(pos, "tell") == 0) {
-    pos = strtok(NULL, " \n");
-    if (pos) {
-      char *m = strtok(NULL, "\n");
-      if (m) {
-        cmd_tell(clients, idx, idx_bound, pos, m);
+  } else if (strcmp(tok, "tell") == 0) {
+    tok = strtok(NULL, " \n");
+    if (tok) {
+      char *msg = strtok(NULL, "\n");
+      if (msg) {
+        cmd_tell(clients, idx, idx_bound, tok, msg);
         return;
       }
     }
-  } else if (strcmp(pos, "yell") == 0) {
-    pos = strtok(NULL, "\n");
-    if (pos) {
-      cmd_yell(clients, idx, idx_bound, pos);
+  } else if (strcmp(tok, "yell") == 0) {
+    tok = strtok(NULL, "\n");
+    if (tok) {
+      cmd_yell(clients, idx, idx_bound, tok);
       return;
     }
   }
