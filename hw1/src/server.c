@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
 
   bind(listen_fd, (struct sockaddr *)&listen_addr, sizeof(listen_addr));
 
-  listen(listen_fd, 1024);
+  listen(listen_fd, CLIENT_MAX);
 
   int idx_bound = 0;
   struct Client *clients = malloc(CLIENT_MAX * sizeof(struct Client));
