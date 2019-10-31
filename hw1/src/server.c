@@ -13,30 +13,30 @@ int main(int argc, char **argv) {
     exit(0);
   }
 
-  int listen_fd;
-  int idx_bound = 0;
-  struct Client *clients = malloc(CLIENT_MAX * sizeof(struct Client));
-  for (int i = 0; i < CLIENT_MAX; i++)
-    clients[i].fd = -1;
-
   struct sockaddr_in listen_addr;
   memset(&listen_addr, 0, sizeof(listen_addr));
   listen_addr.sin_family = AF_INET;
   listen_addr.sin_addr.s_addr = htonl(INADDR_ANY);
   listen_addr.sin_port = htons(atoi(argv[1]));
 
+  int listen_fd;
   listen_fd = socket(AF_INET, SOCK_STREAM, 0);
 
   bind(listen_fd, (struct sockaddr *)&listen_addr, sizeof(listen_addr));
 
   listen(listen_fd, 1024);
 
-  fd_set all_set, r_set;
-  FD_SET(listen_fd, &all_set);
+  int idx_bound = 0;
+  struct Client *clients = malloc(CLIENT_MAX * sizeof(struct Client));
+  for (int i = 0; i < CLIENT_MAX; i++)
+    clients[i].fd = -1;
+
+  fd_set new_set, r_set;
+  FD_SET(listen_fd, &new_set);
   int max_fd = listen_fd + 1;
 
   for (;;) {
-    r_set = all_set;
+    r_set = new_set;
     int nready = select(max_fd, &r_set, NULL, NULL, NULL);
 
     if (FD_ISSET(listen_fd, &r_set)) {
@@ -44,42 +44,36 @@ int main(int argc, char **argv) {
       int cli_len = sizeof(cli_addr);
       int cli_fd = accept(listen_fd, (struct sockaddr *)&cli_addr, &cli_len);
 
-      msg_broadcast(clients, idx_bound, "Someone is coming!");
-
       int idx = 0;
-      for (; idx < CLIENT_MAX; idx++) {
-        if (clients[idx].fd < 0) {
-          clients[idx].fd = cli_fd;
+      for (; idx < CLIENT_MAX; idx++)
+        if (clients[idx].fd < 0)
           break;
-        }
-      }
 
       if (idx == CLIENT_MAX) {
-        printf("Chat Room is full!\n");
-        exit(0);
-      }
+        msg_send(cli_fd, "Chat room now is full!");
+        close(cli_fd);
+      } else {
+        msg_broadcast(clients, idx_bound, "Someone is coming!");
 
-      inet_ntop(AF_INET, &cli_addr.sin_addr, clients[idx].ip,
-                sizeof(clients[idx].ip));
-      clients[idx].port = ntohs(cli_addr.sin_port);
+        clients[idx].fd = cli_fd;
+        inet_ntop(AF_INET, &cli_addr.sin_addr, clients[idx].ip,
+                  sizeof(clients[idx].ip));
+        clients[idx].port = ntohs(cli_addr.sin_port);
 
-      user_come(clients, idx);
+        user_come(clients, idx);
 
-      if (idx > idx_bound) {
-        idx_bound = idx;
+        if (idx > idx_bound)
+          idx_bound = idx;
+        if (cli_fd >= max_fd)
+          max_fd = cli_fd + 1;
+
+        FD_SET(cli_fd, &new_set);
       }
-      if (cli_fd >= max_fd) {
-        max_fd = cli_fd + 1;
-      }
-      FD_SET(cli_fd, &all_set);
-      if (--nready)
-        continue;
+      nready--;
     }
 
     for (int idx = 0; idx <= idx_bound && nready >= 0; idx++) {
       if (FD_ISSET(clients[idx].fd, &r_set)) {
-        --nready;
-
         char buf[LINE_MAX];
         int n = read(clients[idx].fd, buf, LINE_MAX - 1);
         if (n != 0) {
@@ -87,10 +81,11 @@ int main(int argc, char **argv) {
           def_cmd(clients, idx, idx_bound, buf);
         } else {
           close(clients[idx].fd);
-          FD_CLR(clients[idx].fd, &all_set);
+          FD_CLR(clients[idx].fd, &new_set);
           clients[idx].fd = -1;
           user_leave(clients, idx, idx_bound);
         }
+        nready--;
       }
     }
   }
