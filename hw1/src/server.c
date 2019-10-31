@@ -1,10 +1,11 @@
-#include "chat-room.h"
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
+#include "chat-room.h"
 
 int main(int argc, char **argv) {
   if (argc != 2) {
