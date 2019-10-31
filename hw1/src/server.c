@@ -9,12 +9,12 @@
 #define CLIENT_MAX 10
 #define LINE_MAX 1024
 
-typedef struct Client {
+struct Client {
   int fd;
   char name[16];
   char ip[16];
   int port;
-} Client;
+};
 
 void msg_send(int fd, char *msg) {
   char buf[LINE_MAX];
@@ -114,8 +114,8 @@ void cmd_yell(struct Client *clients, int idx, int idx_bound, char *msg) {
 
 void cmd_who(struct Client *clients, int idx, int idx_bound) {
   for (int i = 0; i <= idx_bound; i++) {
-    char buf[LINE_MAX];
     if (clients[i].fd >= 0) {
+      char buf[LINE_MAX];
       sprintf(buf, "%s %s:%d", clients[idx].name, clients[idx].ip,
               clients[idx].port);
       if (i == idx)
@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
 
   int listen_fd;
   int idx_bound = 0;
-  struct Client clients[CLIENT_MAX];
+  struct Client *clients = malloc(CLIENT_MAX * sizeof(struct Client));
   for (int i = 0; i < CLIENT_MAX; i++)
     clients[i].fd = -1;
 
