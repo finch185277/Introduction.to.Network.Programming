@@ -196,7 +196,9 @@ int main(int argc, char **argv) {
       struct sockaddr_in cli_addr;
       int cli_len = sizeof(cli_addr);
       int cli_fd = accept(listen_fd, (struct sockaddr *)&cli_addr, &cli_len);
+
       msg_broadcast(clients, idx_bound, "Someone is coming!");
+
       int idx = 0;
       for (; idx < CLIENT_MAX; idx++) {
         if (clients[idx].fd < 0) {
@@ -205,15 +207,17 @@ int main(int argc, char **argv) {
         }
       }
 
-      inet_ntop(AF_INET, &cli_addr.sin_addr, clients[idx].ip,
-                sizeof(clients[idx].ip));
-      clients[idx].port = ntohs(cli_addr.sin_port);
-      user_come(clients, idx);
-
       if (idx == CLIENT_MAX) {
         printf("Chat Room is full!\n");
         exit(0);
       }
+
+      inet_ntop(AF_INET, &cli_addr.sin_addr, clients[idx].ip,
+                sizeof(clients[idx].ip));
+      clients[idx].port = ntohs(cli_addr.sin_port);
+
+      user_come(clients, idx);
+
       if (idx > idx_bound) {
         idx_bound = idx;
       }
@@ -225,8 +229,7 @@ int main(int argc, char **argv) {
         continue;
     }
 
-    int idx = 0;
-    for (; idx <= idx_bound && nready; idx++) {
+    for (int idx = 0; idx <= idx_bound && nready >= 0; idx++) {
       if (FD_ISSET(clients[idx].fd, &r_set)) {
         --nready;
 
