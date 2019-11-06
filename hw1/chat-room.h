@@ -4,13 +4,15 @@
 #include <string.h>
 #include <unistd.h>
 
-#define CLIENT_MAX 10
+#define CHAT_ROOM_LOGIN_MAX 10
+#define CLIENT_NAME_MIN 2
+#define CLIENT_NAME_MAX 12
 #define LINE_MAX 1024
 
 struct Client {
   int fd;
-  char name[16];
-  char ip[16];
+  char name[CLIENT_NAME_MAX];
+  char ip[INET_ADDRSTRLEN];
   int port;
 };
 

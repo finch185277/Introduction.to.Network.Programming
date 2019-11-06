@@ -19,8 +19,7 @@ void user_sign_in(struct Client *clients, int idx, int idx_bound, int cli_fd,
 
   clients[idx].fd = cli_fd;
   strcpy(clients[idx].name, "anonymous");
-  inet_ntop(AF_INET, &cli_addr->sin_addr, clients[idx].ip,
-            sizeof(clients[idx].ip));
+  inet_ntop(AF_INET, &cli_addr->sin_addr, clients[idx].ip, INET_ADDRSTRLEN);
   clients[idx].port = ntohs(cli_addr->sin_port);
 
   sprintf(buf, "Hello, anonymous! From: %s:%d", clients[idx].ip,
@@ -65,11 +64,13 @@ void cmd_name(struct Client *clients, int idx, int idx_bound, char *name) {
     }
   }
   int name_len = strlen(name);
-  if (name_len < 2 || name_len > 12 ||
+  if (name_len < CLIENT_NAME_MIN || name_len > CLIENT_NAME_MAX ||
       strspn(name, "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz") !=
           name_len) {
-    msg_unicast(clients[idx].fd,
-                "ERROR: Username can only consists of 2~12 English letters.");
+    char buf[LINE_MAX];
+    sprintf(buf, "ERROR: Username can only consists of %d~%d English letters.",
+            CLIENT_NAME_MIN, CLIENT_NAME_MAX);
+    msg_unicast(clients[idx].fd, buf);
     return;
   }
   char buf[LINE_MAX];

@@ -24,11 +24,11 @@ int main(int argc, char **argv) {
 
   bind(listen_fd, (struct sockaddr *)&listen_addr, sizeof(listen_addr));
 
-  listen(listen_fd, CLIENT_MAX);
+  listen(listen_fd, CHAT_ROOM_LOGIN_MAX);
 
   int idx_bound = 0;
-  struct Client *clients = malloc(CLIENT_MAX * sizeof(struct Client));
-  for (int i = 0; i < CLIENT_MAX; i++)
+  struct Client *clients = malloc(CHAT_ROOM_LOGIN_MAX * sizeof(struct Client));
+  for (int i = 0; i < CHAT_ROOM_LOGIN_MAX; i++)
     clients[i].fd = -1;
 
   fd_set new_set, r_set;
@@ -45,11 +45,11 @@ int main(int argc, char **argv) {
       int cli_fd = accept(listen_fd, (struct sockaddr *)&cli_addr, &cli_len);
 
       int idx = 0;
-      for (; idx < CLIENT_MAX; idx++)
+      for (; idx < CHAT_ROOM_LOGIN_MAX; idx++)
         if (clients[idx].fd < 0)
           break;
 
-      if (idx == CLIENT_MAX) {
+      if (idx == CHAT_ROOM_LOGIN_MAX) {
         msg_unicast(cli_fd, "Chat room now is full!");
         close(cli_fd);
       } else {
