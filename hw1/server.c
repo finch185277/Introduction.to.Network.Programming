@@ -73,9 +73,9 @@ int main(int argc, char **argv) {
           buf[n] = '\0';
           def_cmd(clients, idx, idx_bound, buf);
         } else {
-          user_sign_out(clients, idx, idx_bound);
           close(clients[idx].fd);
           FD_CLR(clients[idx].fd, &new_set);
+          user_sign_out(clients, idx, idx_bound);
         }
         nready--;
       }
