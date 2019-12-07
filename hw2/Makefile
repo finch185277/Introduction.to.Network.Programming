@@ -1,7 +1,8 @@
 CXX = gcc
 ARG = -O3 -o
-EXEC_FILES = sender_sigalrm sender_select sender_sockopt
-             receiver_sigalrm receiver_select receiver_sockopt
+EXEC_SIGALRM = sender_sigalrm receiver_sigalrm
+EXEC_SELECT = sender_select receiver_select
+EXEC_SOCKOPT = sender_sockopt receiver_sockopt
 
 all: sigalrm select sockopt
 
@@ -22,4 +23,4 @@ sockopt: sender_sockopt.c receiver_sockopt.c
 test: all
 
 clean:
-	rm -rf $(EXEC_FILE)
+	rm -rf $(EXEC_SIGALRM) $(EXEC_SELECT) $(EXEC_SOCKOPT)
