@@ -1,5 +1,6 @@
 // client
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,10 +23,12 @@ int main(int argc, char *argv[]) {
     exit(0);
   }
 
+  struct hostent *host = gethostbyname(argv[2]);
+
   struct sockaddr_in dst_addr;
   memset(&dst_addr, 0, sizeof(dst_addr));
   dst_addr.sin_family = AF_INET;
-  dst_addr.sin_addr.s_addr = inet_addr(argv[2]);
+  memcpy(&dst_addr.sin_addr, host->h_addr, host->h_length);
   dst_addr.sin_port = htons(atoi(argv[3]));
 
   int sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
