@@ -77,8 +77,10 @@ int main(int argc, char *argv[]) {
       if (readable_select_timeout(sock_fd, expect_timeout, 0) == 0) {
         printf("socket timeout\n");
         repeat_timeout_counter++;
-        if (repeat_timeout_counter == 10)
+        if (repeat_timeout_counter == 10) {
           expect_timeout *= 2;
+          repeat_timeout_counter = 0;
+        }
         continue;
       } else {
         recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
@@ -101,8 +103,10 @@ int main(int argc, char *argv[]) {
       if (readable_select_timeout(sock_fd, expect_timeout, 0) == 0) {
         printf("socket timeout\n");
         repeat_timeout_counter++;
-        if (repeat_timeout_counter == 10)
+        if (repeat_timeout_counter == 10) {
           expect_timeout *= 2;
+          repeat_timeout_counter = 0;
+        }
         continue;
       } else {
         recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
@@ -118,8 +122,10 @@ int main(int argc, char *argv[]) {
         if (readable_select_timeout(sock_fd, expect_timeout, 0) == 0) {
           printf("socket timeout\n");
           repeat_timeout_counter++;
-          if (repeat_timeout_counter == 10)
+          if (repeat_timeout_counter == 10) {
             expect_timeout *= 2;
+            repeat_timeout_counter = 0;
+          }
           continue;
         } else {
           recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,

@@ -73,11 +73,14 @@ int main(int argc, char *argv[]) {
       alarm(expect_timeout);
       if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                    (struct sockaddr *)&src_addr, (socklen_t *)&sock_len) < 0) {
-        if (errno == EINTR)
+        if (errno == EINTR) {
           printf("socket timeout\n");
-        repeat_timeout_counter++;
-        if (repeat_timeout_counter == 10)
-          expect_timeout *= 2;
+          repeat_timeout_counter++;
+          if (repeat_timeout_counter == 10) {
+            expect_timeout *= 2;
+            repeat_timeout_counter = 0;
+          }
+        }
       } else {
         alarm(0);
         repeat_timeout_counter = 0;
@@ -98,11 +101,14 @@ int main(int argc, char *argv[]) {
       alarm(expect_timeout);
       if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                    (struct sockaddr *)&src_addr, (socklen_t *)&sock_len) < 0) {
-        if (errno == EINTR)
+        if (errno == EINTR) {
           printf("socket timeout\n");
-        repeat_timeout_counter++;
-        if (repeat_timeout_counter == 10)
-          expect_timeout *= 2;
+          repeat_timeout_counter++;
+          if (repeat_timeout_counter == 10) {
+            expect_timeout *= 2;
+            repeat_timeout_counter = 0;
+          }
+        }
       } else {
         alarm(0);
         repeat_timeout_counter = 0;
@@ -117,11 +123,14 @@ int main(int argc, char *argv[]) {
         if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                      (struct sockaddr *)&src_addr,
                      (socklen_t *)&sock_len) < 0) {
-          if (errno == EINTR)
+          if (errno == EINTR) {
             printf("socket timeout\n");
-          repeat_timeout_counter++;
-          if (repeat_timeout_counter == 10)
-            expect_timeout *= 2;
+            repeat_timeout_counter++;
+            if (repeat_timeout_counter == 10) {
+              expect_timeout *= 2;
+              repeat_timeout_counter = 0;
+            }
+          }
         } else {
           alarm(0);
           repeat_timeout_counter = 0;
