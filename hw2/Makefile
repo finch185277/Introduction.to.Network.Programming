@@ -4,6 +4,8 @@ SRC_FOLDER = src
 EXEC_SIGALRM = sender_sigalrm receiver_sigalrm
 EXEC_SELECT = sender_select receiver_select
 EXEC_SOCKOPT = sender_sockopt receiver_sockopt
+TEST_INPUT = test_in
+TEST_OUTPUT = test_sigalrm test_select test_sockopt
 
 all: sigalrm select sockopt
 
@@ -24,4 +26,4 @@ sockopt: $(SRC_FOLDER)/sender_sockopt.c $(SRC_FOLDER)/receiver_sockopt.c
 test: all
 
 clean:
-	rm -rf $(EXEC_SIGALRM) $(EXEC_SELECT) $(EXEC_SOCKOPT)
+	rm -rf $(EXEC_SIGALRM) $(EXEC_SELECT) $(EXEC_SOCKOPT) $(TEST_INPUT) $(TEST_OUTPUT)
