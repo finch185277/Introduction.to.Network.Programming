@@ -1,6 +1,8 @@
 // client
 #include <arpa/inet.h>
+#include <errno.h>
 #include <netdb.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +17,9 @@ struct segment_t {
   long int length;
   char data[BUF_SIZE];
 };
+
+// alarm signal function
+void alarm_func(int signo) { return; }
 
 int main(int argc, char *argv[]) {
   if (argc != 4) {
@@ -39,11 +44,8 @@ int main(int argc, char *argv[]) {
     stat(argv[1], &st);
     long int file_size = st.st_size;
 
-    // set time out
-    struct timeval timeout;
-    timeout.tv_sec = 2;
-    setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
-               sizeof(struct timeval));
+    // set signal function
+    sig_t sigfunc = signal(SIGALRM, alarm_func);
 
     // calculate total segment amount
     long int total_seg = 0, ack_no = 0;
@@ -63,8 +65,16 @@ int main(int argc, char *argv[]) {
       sprintf(segment.data, "%ld", total_seg);
       sendto(sock_fd, &segment, sizeof(segment), 0,
              (struct sockaddr *)&dst_addr, sizeof(dst_addr));
-      recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
-               (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
+
+      // recvfrom with alarm
+      alarm(2);
+      if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
+                   (struct sockaddr *)&src_addr, (socklen_t *)&sock_len) < 0) {
+        if (errno == EINTR)
+          printf("socket timeout\n");
+      } else {
+        alarm(0);
+      }
     }
 
     // send file
@@ -76,14 +86,31 @@ int main(int argc, char *argv[]) {
 
       sendto(sock_fd, &segment, sizeof(segment), 0,
              (struct sockaddr *)&dst_addr, sizeof(dst_addr));
-      recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
-               (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
+
+      // recvfrom with alarm
+      alarm(2);
+      if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
+                   (struct sockaddr *)&src_addr, (socklen_t *)&sock_len) < 0) {
+        if (errno == EINTR)
+          printf("socket timeout\n");
+      } else {
+        alarm(0);
+      }
 
       while (ack_no != segment.seq_no) {
         sendto(sock_fd, &segment, sizeof(segment), 0,
                (struct sockaddr *)&dst_addr, sizeof(dst_addr));
-        recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
-                 (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
+
+        // recvfrom with alarm
+        alarm(2);
+        if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
+                     (struct sockaddr *)&src_addr,
+                     (socklen_t *)&sock_len) < 0) {
+          if (errno == EINTR)
+            printf("socket timeout\n");
+        } else {
+          alarm(0);
+        }
       }
 
       idx++;
@@ -93,6 +120,9 @@ int main(int argc, char *argv[]) {
       }
     }
     fclose(file);
+
+    // restore signal function
+    signal(SIGALRM, sigfunc);
   }
   return 0;
 }

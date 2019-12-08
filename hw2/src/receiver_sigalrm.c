@@ -1,9 +1,12 @@
 // server
 #include <arpa/inet.h>
+#include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 #define BUF_SIZE 1000
 
@@ -12,6 +15,9 @@ struct segment_t {
   long int length;
   char data[BUF_SIZE];
 };
+
+// alarm signal function
+void alarm_func(int signo) { return; }
 
 int main(int argc, char *argv[]) {
   if (argc != 3) {
@@ -29,11 +35,8 @@ int main(int argc, char *argv[]) {
 
   bind(listen_fd, (struct sockaddr *)&listen_addr, sizeof(listen_addr));
 
-  // set time out
-  struct timeval timeout;
-  timeout.tv_sec = 2;
-  setsockopt(listen_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
-             sizeof(struct timeval));
+  // set signal function
+  sig_t sigfunc = signal(SIGALRM, alarm_func);
 
   long int total_seg = 0, bytes_recv = 0;
 
@@ -43,8 +46,17 @@ int main(int argc, char *argv[]) {
   // get total segment amount
   for (;;) {
     struct segment_t segment;
-    recvfrom(listen_fd, &segment, sizeof(segment), 0,
-             (struct sockaddr *)&peer_addr, (socklen_t *)&sock_len);
+
+    // recvfrom with alarm
+    alarm(2);
+    if (recvfrom(listen_fd, &segment, sizeof(segment), 0,
+                 (struct sockaddr *)&peer_addr, (socklen_t *)&sock_len) < 0) {
+      if (errno == EINTR)
+        printf("socket timeout\n");
+    } else {
+      alarm(0);
+    }
+
     if (segment.seq_no == 0)
       total_seg = atoi(segment.data);
 
@@ -59,8 +71,16 @@ int main(int argc, char *argv[]) {
   FILE *file = fopen(argv[1], "a");
   for (long int idx = 1; idx <= total_seg;) {
     struct segment_t segment;
-    recvfrom(listen_fd, &segment, sizeof(segment), 0,
-             (struct sockaddr *)&peer_addr, (socklen_t *)&sock_len);
+
+    // recvfrom with alarm
+    alarm(2);
+    if (recvfrom(listen_fd, &segment, sizeof(segment), 0,
+                 (struct sockaddr *)&peer_addr, (socklen_t *)&sock_len) < 0) {
+      if (errno == EINTR)
+        printf("socket timeout\n");
+    } else {
+      alarm(0);
+    }
 
     if (segment.seq_no == 0) {
       sendto(listen_fd, &total_seg, sizeof(total_seg), 0,
@@ -82,6 +102,9 @@ int main(int argc, char *argv[]) {
     }
   }
   fclose(file);
+
+  // restore signal function
+  signal(SIGALRM, sigfunc);
 
   return 0;
 }
