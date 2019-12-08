@@ -51,6 +51,9 @@ int main(int argc, char *argv[]) {
     stat(argv[1], &st);
     long int file_size = st.st_size;
 
+    // init timeout setting
+    int expect_timeout = 1, repeat_timeout_counter = 0;
+
     // calculate total segment amount
     long int total_seg = 0, ack_no = 0;
     if (file_size % BUF_SIZE == 0) {
@@ -71,12 +74,16 @@ int main(int argc, char *argv[]) {
              (struct sockaddr *)&dst_addr, sizeof(dst_addr));
 
       // recvfrom with select
-      if (readable_select_timeout(sock_fd, 2, 0) == 0) {
+      if (readable_select_timeout(sock_fd, expect_timeout, 0) == 0) {
         printf("socket timeout\n");
+        repeat_timeout_counter++;
+        if (repeat_timeout_counter == 10)
+          expect_timeout *= 2;
         continue;
       } else {
         recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                  (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
+        repeat_timeout_counter = 0;
       }
     }
 
@@ -91,12 +98,16 @@ int main(int argc, char *argv[]) {
              (struct sockaddr *)&dst_addr, sizeof(dst_addr));
 
       // recvfrom with select
-      if (readable_select_timeout(sock_fd, 2, 0) == 0) {
+      if (readable_select_timeout(sock_fd, expect_timeout, 0) == 0) {
         printf("socket timeout\n");
+        repeat_timeout_counter++;
+        if (repeat_timeout_counter == 10)
+          expect_timeout *= 2;
         continue;
       } else {
         recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                  (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
+        repeat_timeout_counter = 0;
       }
 
       while (ack_no != segment.seq_no) {
@@ -104,12 +115,16 @@ int main(int argc, char *argv[]) {
                (struct sockaddr *)&dst_addr, sizeof(dst_addr));
 
         // recvfrom with select
-        if (readable_select_timeout(sock_fd, 2, 0) == 0) {
+        if (readable_select_timeout(sock_fd, expect_timeout, 0) == 0) {
           printf("socket timeout\n");
+          repeat_timeout_counter++;
+          if (repeat_timeout_counter == 10)
+            expect_timeout *= 2;
           continue;
         } else {
           recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                    (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
+          repeat_timeout_counter = 0;
         }
       }
 
