@@ -29,46 +29,59 @@ int main(int argc, char *argv[]) {
 
   bind(listen_fd, (struct sockaddr *)&listen_addr, sizeof(listen_addr));
 
-  struct sockaddr_in cli_addr;
-  int sock_len = sizeof(cli_addr);
-  long int total_frame = 0, bytes_recv = 0;
-
-  // get total frame
+  // set time out
   struct timeval timeout;
   timeout.tv_sec = 2;
   setsockopt(listen_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
              sizeof(struct timeval));
 
-  recvfrom(listen_fd, &total_frame, sizeof(total_frame), 0,
-           (struct sockaddr *)&cli_addr, (socklen_t *)&sock_len);
+  long int total_frame = 0, bytes_recv = 0;
 
-  timeout.tv_sec = 0;
-  setsockopt(listen_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
-             sizeof(struct timeval));
+  struct sockaddr_in peer_addr;
+  int sock_len = sizeof(peer_addr);
 
-  sendto(listen_fd, &total_frame, sizeof(total_frame), 0,
-         (struct sockaddr *)&cli_addr, sizeof(cli_addr));
-
-  for (int idx = 0; idx < total_frame;) {
+  // get total frame
+  for (;;) {
     struct frame_t frame;
-    recvfrom(listen_fd, &frame, sizeof(frame), 0, (struct sockaddr *)&cli_addr,
+    recvfrom(listen_fd, &frame, sizeof(frame), 0, (struct sockaddr *)&peer_addr,
              (socklen_t *)&sock_len);
-    sendto(listen_fd, &frame.ID, sizeof(frame.ID), 0,
-           (struct sockaddr *)&cli_addr, sizeof(cli_addr));
+    if (frame.ID == 0)
+      total_frame = atoi(frame.data);
+
+    sendto(listen_fd, &total_frame, sizeof(total_frame), 0,
+           (struct sockaddr *)&peer_addr, sizeof(peer_addr));
+
+    if (frame.ID == 0)
+      break;
+  }
+
+  // get file
+  FILE *file = fopen(argv[1], "a");
+  for (long int idx = 1; idx <= total_frame;) {
+    struct frame_t frame;
+    recvfrom(listen_fd, &frame, sizeof(frame), 0, (struct sockaddr *)&peer_addr,
+             (socklen_t *)&sock_len);
+
+    if (frame.ID == 0) {
+      sendto(listen_fd, &total_frame, sizeof(total_frame), 0,
+             (struct sockaddr *)&peer_addr, sizeof(peer_addr));
+    } else {
+      sendto(listen_fd, &frame.ID, sizeof(frame.ID), 0,
+             (struct sockaddr *)&peer_addr, sizeof(peer_addr));
+    }
 
     if (frame.ID == idx) {
-      FILE *file = fopen(argv[1], "a");
       fwrite(frame.data, sizeof(char), frame.length, file);
-      fclose(file);
       bytes_recv += frame.length;
-      printf("Bytes received %ld\n", bytes_recv);
+      printf("Bytes total received %ld\n", bytes_recv);
       idx++;
     }
 
-    if (idx == total_frame) {
+    if (idx == total_frame + 1) {
       printf("File transfer success!\n");
     }
   }
+  fclose(file);
 
   return 0;
 }
