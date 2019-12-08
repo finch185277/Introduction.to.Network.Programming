@@ -16,9 +16,6 @@ struct segment_t {
   char data[BUF_SIZE];
 };
 
-// alarm signal function
-void alarm_func(int signo) { return; }
-
 int main(int argc, char *argv[]) {
   if (argc != 3) {
     printf("Usage: %s [save filename] [bind port]\n", argv[0]);
@@ -35,9 +32,6 @@ int main(int argc, char *argv[]) {
 
   bind(listen_fd, (struct sockaddr *)&listen_addr, sizeof(listen_addr));
 
-  // set signal function
-  sig_t sigfunc = signal(SIGALRM, alarm_func);
-
   long int total_seg = 0, bytes_recv = 0;
 
   struct sockaddr_in peer_addr;
@@ -47,15 +41,8 @@ int main(int argc, char *argv[]) {
   for (;;) {
     struct segment_t segment;
 
-    // recvfrom with alarm
-    alarm(2);
-    if (recvfrom(listen_fd, &segment, sizeof(segment), 0,
-                 (struct sockaddr *)&peer_addr, (socklen_t *)&sock_len) < 0) {
-      if (errno == EINTR)
-        printf("socket timeout\n");
-    } else {
-      alarm(0);
-    }
+    recvfrom(listen_fd, &segment, sizeof(segment), 0,
+             (struct sockaddr *)&peer_addr, (socklen_t *)&sock_len);
 
     if (segment.seq_no == 0)
       total_seg = atoi(segment.data);
@@ -72,15 +59,8 @@ int main(int argc, char *argv[]) {
   for (long int idx = 1; idx <= total_seg;) {
     struct segment_t segment;
 
-    // recvfrom with alarm
-    alarm(2);
-    if (recvfrom(listen_fd, &segment, sizeof(segment), 0,
-                 (struct sockaddr *)&peer_addr, (socklen_t *)&sock_len) < 0) {
-      if (errno == EINTR)
-        printf("socket timeout\n");
-    } else {
-      alarm(0);
-    }
+    recvfrom(listen_fd, &segment, sizeof(segment), 0,
+             (struct sockaddr *)&peer_addr, (socklen_t *)&sock_len);
 
     if (segment.seq_no == 0) {
       sendto(listen_fd, &total_seg, sizeof(total_seg), 0,
@@ -102,9 +82,6 @@ int main(int argc, char *argv[]) {
     }
   }
   fclose(file);
-
-  // restore signal function
-  signal(SIGALRM, sigfunc);
 
   return 0;
 }
