@@ -1,5 +1,6 @@
 // client
 #include <arpa/inet.h>
+#include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,9 +40,12 @@ int main(int argc, char *argv[]) {
     stat(argv[1], &st);
     long int file_size = st.st_size;
 
+    // init timeout setting
+    int expect_timeout = 1, repeat_timeout_counter = 0;
+
     // set time out
     struct timeval timeout;
-    timeout.tv_sec = 2;
+    timeout.tv_sec = expect_timeout;
     setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
                sizeof(struct timeval));
 
@@ -63,8 +67,23 @@ int main(int argc, char *argv[]) {
       sprintf(segment.data, "%ld", total_seg);
       sendto(sock_fd, &segment, sizeof(segment), 0,
              (struct sockaddr *)&dst_addr, sizeof(dst_addr));
-      recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
-               (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
+
+      if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
+                   (struct sockaddr *)&src_addr, (socklen_t *)&sock_len) < 0) {
+        if (errno == EINTR) {
+          printf("socket timeout\n");
+          repeat_timeout_counter++;
+          if (repeat_timeout_counter == 10) {
+            expect_timeout *= 2;
+            repeat_timeout_counter = 0;
+          }
+          timeout.tv_sec = expect_timeout;
+          setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
+                     sizeof(struct timeval));
+        }
+      } else {
+        repeat_timeout_counter = 0;
+      }
     }
 
     // send file
@@ -76,14 +95,45 @@ int main(int argc, char *argv[]) {
 
       sendto(sock_fd, &segment, sizeof(segment), 0,
              (struct sockaddr *)&dst_addr, sizeof(dst_addr));
-      recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
-               (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
+
+      if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
+                   (struct sockaddr *)&src_addr, (socklen_t *)&sock_len) < 0) {
+        if (errno == EINTR) {
+          printf("socket timeout\n");
+          repeat_timeout_counter++;
+          if (repeat_timeout_counter == 10) {
+            expect_timeout *= 2;
+            repeat_timeout_counter = 0;
+          }
+          timeout.tv_sec = expect_timeout;
+          setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
+                     sizeof(struct timeval));
+        }
+      } else {
+        repeat_timeout_counter = 0;
+      }
 
       while (ack_no != segment.seq_no) {
         sendto(sock_fd, &segment, sizeof(segment), 0,
                (struct sockaddr *)&dst_addr, sizeof(dst_addr));
-        recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
-                 (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
+
+        if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
+                     (struct sockaddr *)&src_addr,
+                     (socklen_t *)&sock_len) < 0) {
+          if (errno == EINTR) {
+            printf("socket timeout\n");
+            repeat_timeout_counter++;
+            if (repeat_timeout_counter == 10) {
+              expect_timeout *= 2;
+              repeat_timeout_counter = 0;
+            }
+            timeout.tv_sec = expect_timeout;
+            setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
+                       sizeof(struct timeval));
+          }
+        } else {
+          repeat_timeout_counter = 0;
+        }
       }
 
       idx++;

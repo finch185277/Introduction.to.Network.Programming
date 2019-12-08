@@ -29,12 +29,6 @@ int main(int argc, char *argv[]) {
 
   bind(listen_fd, (struct sockaddr *)&listen_addr, sizeof(listen_addr));
 
-  // set time out
-  struct timeval timeout;
-  timeout.tv_sec = 2;
-  setsockopt(listen_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
-             sizeof(struct timeval));
-
   long int total_seg = 0, bytes_recv = 0;
 
   struct sockaddr_in peer_addr;
@@ -43,8 +37,10 @@ int main(int argc, char *argv[]) {
   // get total segment amount
   for (;;) {
     struct segment_t segment;
+
     recvfrom(listen_fd, &segment, sizeof(segment), 0,
              (struct sockaddr *)&peer_addr, (socklen_t *)&sock_len);
+
     if (segment.seq_no == 0)
       total_seg = atoi(segment.data);
 
@@ -59,6 +55,7 @@ int main(int argc, char *argv[]) {
   FILE *file = fopen(argv[1], "a");
   for (long int idx = 1; idx <= total_seg;) {
     struct segment_t segment;
+
     recvfrom(listen_fd, &segment, sizeof(segment), 0,
              (struct sockaddr *)&peer_addr, (socklen_t *)&sock_len);
 
