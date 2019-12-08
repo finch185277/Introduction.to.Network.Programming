@@ -10,8 +10,8 @@
 
 #define BUF_SIZE 1000
 
-struct frame_t {
-  long int ID;
+struct segment_t {
+  long int seq_no;
   long int length;
   char data[BUF_SIZE];
 };
@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
 
   int sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
 
-  if (access(argv[1], F_OK) == 0) {
+  if (access(argv[1], R_OK) == 0) {
     // get file size
     struct stat st;
     stat(argv[1], &st);
@@ -45,50 +45,50 @@ int main(int argc, char *argv[]) {
     setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
                sizeof(struct timeval));
 
-    // calculate total frame
-    long int total_frame = 0, ack_num = 0;
+    // calculate total segment amount
+    long int total_seg = 0, ack_no = 0;
     if (file_size % BUF_SIZE == 0) {
-      total_frame = file_size / BUF_SIZE;
+      total_seg = file_size / BUF_SIZE;
     } else {
-      total_frame = file_size / BUF_SIZE + 1;
+      total_seg = file_size / BUF_SIZE + 1;
     }
 
     struct sockaddr_in src_addr;
     int sock_len = sizeof(src_addr);
 
-    // send total frame
-    while (ack_num != total_frame) {
-      struct frame_t frame;
-      frame.ID = 0;
-      sprintf(frame.data, "%ld", total_frame);
-      sendto(sock_fd, &frame, sizeof(frame), 0, (struct sockaddr *)&dst_addr,
-             sizeof(dst_addr));
-      recvfrom(sock_fd, &ack_num, sizeof(ack_num), 0,
+    // send total segment amount
+    while (ack_no != total_seg) {
+      struct segment_t segment;
+      segment.seq_no = 0;
+      sprintf(segment.data, "%ld", total_seg);
+      sendto(sock_fd, &segment, sizeof(segment), 0,
+             (struct sockaddr *)&dst_addr, sizeof(dst_addr));
+      recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
     }
 
     // send file
     FILE *file = fopen(argv[1], "r");
-    for (long int idx = 1; idx <= total_frame;) {
-      struct frame_t frame;
-      frame.ID = idx;
-      frame.length = fread(frame.data, sizeof(char), BUF_SIZE, file);
+    for (long int idx = 1; idx <= total_seg;) {
+      struct segment_t segment;
+      segment.seq_no = idx;
+      segment.length = fread(segment.data, sizeof(char), BUF_SIZE, file);
 
-      sendto(sock_fd, &frame, sizeof(frame), 0, (struct sockaddr *)&dst_addr,
-             sizeof(dst_addr));
-      recvfrom(sock_fd, &ack_num, sizeof(ack_num), 0,
+      sendto(sock_fd, &segment, sizeof(segment), 0,
+             (struct sockaddr *)&dst_addr, sizeof(dst_addr));
+      recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
 
-      while (ack_num != frame.ID) {
-        sendto(sock_fd, &frame, sizeof(frame), 0, (struct sockaddr *)&dst_addr,
-               sizeof(dst_addr));
-        recvfrom(sock_fd, &ack_num, sizeof(ack_num), 0,
+      while (ack_no != segment.seq_no) {
+        sendto(sock_fd, &segment, sizeof(segment), 0,
+               (struct sockaddr *)&dst_addr, sizeof(dst_addr));
+        recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                  (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
       }
 
       idx++;
 
-      if (idx == total_frame + 1) {
+      if (idx == total_seg + 1) {
         printf("File transfer success!\n");
       }
     }
