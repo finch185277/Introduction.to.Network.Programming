@@ -1,7 +1,7 @@
 #!/bin/sh
-RED=''
-GREEN=''
-NC='' # No Color
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
 if [ $# -ne 1 ] ;then
     echo "Usage : run_test [file size]"
     exit
@@ -18,7 +18,7 @@ dd if=/dev/urandom of=test_in bs=$1 count=1 >> /dev/null 2>&1
 #tcpdump -i lo -n udp port 5000 -w sigalrm.pcap >> /dev/null 2>&1 &
 # run receiver in background
 killall receiver_sigalrm >> /dev/null 2>&1
-./receiver_sigalrm test_sigalrm 5000 > /dev/null & 
+./receiver_sigalrm test_sigalrm 5000 > /dev/null &
 # run sender
 time ./sender_sigalrm test_in localhost 5000 > /dev/null
 # diff check
@@ -28,7 +28,7 @@ if [ $? -ne 0 ];then
     echo "${RED}***FAIL***${NC}"
 else
 #FILESIZE=$(stat -c%s "./sigalrm.pcap")
-#SIZE=$(numfmt --to=iec-i --suffix=B --format="%.5f" $FILESIZE) 
+#SIZE=$(numfmt --to=iec-i --suffix=B --format="%.5f" $FILESIZE)
 #echo "Size of sigalrm.pcap = $SIZE."
     echo "${GREEN}***PASS***${NC}"
 fi
@@ -49,7 +49,7 @@ if [ $? -ne 0 ];then
     echo "${RED}***FAIL***${NC}"
 else
 #FILESIZE=$(stat -c%s "./select.pcap")
-#SIZE=$(numfmt --to=iec-i --suffix=B --format="%.5f" $FILESIZE) 
+#SIZE=$(numfmt --to=iec-i --suffix=B --format="%.5f" $FILESIZE)
 #echo "Size of select.pcap = $SIZE."
     echo "${GREEN}***PASS***${NC}"
 fi
@@ -70,9 +70,8 @@ if [ $? -ne 0 ];then
     echo "${RED}***FAIL***${NC}"
 else
 #FILESIZE=$(stat -c%s "./sockopt.pcap")
-#SIZE=$(numfmt --to=iec-i --suffix=B --format="%.5f" $FILESIZE) 
+#SIZE=$(numfmt --to=iec-i --suffix=B --format="%.5f" $FILESIZE)
 #echo "Size of sockopt.pcap = $SIZE ."
     echo "${GREEN}***PASS***${NC}"
 fi
 killall tcpdump >> /dev/null 2>&1
-
