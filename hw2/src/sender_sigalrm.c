@@ -13,8 +13,8 @@
 #define BUF_SIZE 1000
 
 struct segment_t {
-  long int seq_no;
-  long int length;
+  int seq_no;
+  int length;
   char data[BUF_SIZE];
 };
 
@@ -42,16 +42,17 @@ int main(int argc, char *argv[]) {
     // get file size
     struct stat st;
     stat(argv[1], &st);
-    long int file_size = st.st_size;
+    int file_size = st.st_size;
 
     // set signal function
     sig_t sigfunc = signal(SIGALRM, alarm_func);
+    siginterrupt(SIGALRM, 1);
 
     // init timeout setting
-    int expect_timeout = 1, repeat_timeout_counter = 0;
+    int expect_timeout = 1;
 
     // calculate total segment amount
-    long int total_seg = 0, ack_no = 0;
+    int total_seg = 0, ack_no = 0;
     if (file_size % BUF_SIZE == 0) {
       total_seg = file_size / BUF_SIZE;
     } else {
@@ -65,9 +66,10 @@ int main(int argc, char *argv[]) {
     while (ack_no != total_seg) {
       struct segment_t segment;
       segment.seq_no = 0;
-      sprintf(segment.data, "%ld", total_seg);
+      sprintf(segment.data, "%d", total_seg);
       sendto(sock_fd, &segment, sizeof(segment), 0,
              (struct sockaddr *)&dst_addr, sizeof(dst_addr));
+      printf("send total_seg!\n");
 
       // recvfrom with alarm
       alarm(expect_timeout);
@@ -75,27 +77,22 @@ int main(int argc, char *argv[]) {
                    (struct sockaddr *)&src_addr, (socklen_t *)&sock_len) < 0) {
         if (errno == EINTR) {
           printf("socket timeout\n");
-          repeat_timeout_counter++;
-          if (repeat_timeout_counter == 10) {
-            expect_timeout *= 2;
-            repeat_timeout_counter = 0;
-          }
         }
       } else {
         alarm(0);
-        repeat_timeout_counter = 0;
       }
     }
 
     // send file
     FILE *file = fopen(argv[1], "r");
-    for (long int idx = 1; idx <= total_seg;) {
+    for (int idx = 1; idx <= total_seg;) {
       struct segment_t segment;
       segment.seq_no = idx;
       segment.length = fread(segment.data, sizeof(char), BUF_SIZE, file);
 
       sendto(sock_fd, &segment, sizeof(segment), 0,
              (struct sockaddr *)&dst_addr, sizeof(dst_addr));
+      printf("send seg: %d!\n", idx);
 
       // recvfrom with alarm
       alarm(expect_timeout);
@@ -103,20 +100,15 @@ int main(int argc, char *argv[]) {
                    (struct sockaddr *)&src_addr, (socklen_t *)&sock_len) < 0) {
         if (errno == EINTR) {
           printf("socket timeout\n");
-          repeat_timeout_counter++;
-          if (repeat_timeout_counter == 10) {
-            expect_timeout *= 2;
-            repeat_timeout_counter = 0;
-          }
         }
       } else {
         alarm(0);
-        repeat_timeout_counter = 0;
       }
 
       while (ack_no != segment.seq_no) {
         sendto(sock_fd, &segment, sizeof(segment), 0,
                (struct sockaddr *)&dst_addr, sizeof(dst_addr));
+        printf("send seg retry: %d!\n", idx);
 
         // recvfrom with alarm
         alarm(expect_timeout);
@@ -125,15 +117,9 @@ int main(int argc, char *argv[]) {
                      (socklen_t *)&sock_len) < 0) {
           if (errno == EINTR) {
             printf("socket timeout\n");
-            repeat_timeout_counter++;
-            if (repeat_timeout_counter == 10) {
-              expect_timeout *= 2;
-              repeat_timeout_counter = 0;
-            }
           }
         } else {
           alarm(0);
-          repeat_timeout_counter = 0;
         }
       }
 

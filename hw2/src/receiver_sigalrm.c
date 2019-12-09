@@ -8,8 +8,8 @@
 #define BUF_SIZE 1000
 
 struct segment_t {
-  long int seq_no;
-  long int length;
+  int seq_no;
+  int length;
   char data[BUF_SIZE];
 };
 
@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
 
   bind(listen_fd, (struct sockaddr *)&listen_addr, sizeof(listen_addr));
 
-  long int total_seg = 0, bytes_recv = 0;
+  int total_seg = 0, bytes_recv = 0;
 
   struct sockaddr_in peer_addr;
   int sock_len = sizeof(peer_addr);
@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
 
   // get file
   FILE *file = fopen(argv[1], "a");
-  for (long int idx = 1; idx <= total_seg;) {
+  for (int idx = 1; idx <= total_seg;) {
     struct segment_t segment;
 
     recvfrom(listen_fd, &segment, sizeof(segment), 0,
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
     if (segment.seq_no == idx) {
       fwrite(segment.data, sizeof(char), segment.length, file);
       bytes_recv += segment.length;
-      printf("Bytes total received %ld\n", bytes_recv);
+      printf("Bytes total received %d\n", bytes_recv);
       idx++;
     }
 
