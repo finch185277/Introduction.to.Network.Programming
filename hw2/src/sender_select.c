@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
     int file_size = st.st_size;
 
     // init timeout setting
-    int expect_timeout = 1;
+    int expect_timeout = 10000, repeat_timeout_counter = 0;
 
     // calculate total segment amount
     int total_seg = 0, ack_no = 0;
@@ -75,11 +75,18 @@ int main(int argc, char *argv[]) {
       printf("send total_seg!\n");
 
       // recvfrom with select
-      if (readable_select_timeout(sock_fd, expect_timeout, 0) == 0) {
+      if (readable_select_timeout(sock_fd, 0, expect_timeout) == 0) {
         printf("socket timeout\n");
+        repeat_timeout_counter++;
+        if (repeat_timeout_counter == 3) {
+          expect_timeout *= 2;
+          repeat_timeout_counter = 0;
+        }
+        continue;
       } else {
         recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                  (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
+        repeat_timeout_counter = 0;
       }
     }
 
@@ -92,34 +99,41 @@ int main(int argc, char *argv[]) {
 
       sendto(sock_fd, &segment, sizeof(segment), 0,
              (struct sockaddr *)&dst_addr, sizeof(dst_addr));
-      printf("send seg: %5d, size: %5d!\n", segment.seq_no, segment.length);
+      printf("send seg: %5d, size: %5d!\n", idx, segment.length);
 
       // recvfrom with select
-      if (readable_select_timeout(sock_fd, expect_timeout, 0) == 0) {
+      if (readable_select_timeout(sock_fd, 0, expect_timeout) == 0) {
         printf("socket timeout\n");
+        repeat_timeout_counter++;
+        if (repeat_timeout_counter == 3) {
+          expect_timeout *= 2;
+          repeat_timeout_counter = 0;
+        }
+        continue;
       } else {
         recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                  (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
+        repeat_timeout_counter = 0;
       }
 
-      int retry_counter = 0;
       while (ack_no != segment.seq_no) {
         sendto(sock_fd, &segment, sizeof(segment), 0,
                (struct sockaddr *)&dst_addr, sizeof(dst_addr));
-        printf("send seg: %5d, size: %5d!\n", segment.seq_no, segment.length);
+        printf("send seg: %5d, size: %5d!\n", idx, segment.length);
 
         // recvfrom with select
-        if (readable_select_timeout(sock_fd, expect_timeout, 0) == 0) {
+        if (readable_select_timeout(sock_fd, 0, expect_timeout) == 0) {
           printf("socket timeout\n");
+          repeat_timeout_counter++;
+          if (repeat_timeout_counter == 3) {
+            expect_timeout *= 2;
+            repeat_timeout_counter = 0;
+          }
+          continue;
         } else {
           recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                    (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
-        }
-
-        retry_counter++;
-        if (retry_counter == 20) {
-          printf("Connection terminated!\n");
-          break;
+          repeat_timeout_counter = 0;
         }
       }
 
