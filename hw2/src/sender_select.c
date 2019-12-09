@@ -102,6 +102,7 @@ int main(int argc, char *argv[]) {
                  (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
       }
 
+      int retry_counter = 0;
       while (ack_no != segment.seq_no) {
         sendto(sock_fd, &segment, sizeof(segment), 0,
                (struct sockaddr *)&dst_addr, sizeof(dst_addr));
@@ -113,6 +114,12 @@ int main(int argc, char *argv[]) {
         } else {
           recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                    (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
+        }
+
+        retry_counter++;
+        if (retry_counter == 20) {
+          printf("Connection terminated!\n");
+          break;
         }
       }
 
