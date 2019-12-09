@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
 
       sendto(sock_fd, &segment, sizeof(segment), 0,
              (struct sockaddr *)&dst_addr, sizeof(dst_addr));
-      printf("send seg: %5d, size: %5d!\n", idx, segment.length);
+      printf("send seg: %5d, size: %5d!\n", segment.seq_no, segment.length);
 
       // recvfrom with setsockopt
       if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
       while (ack_no != segment.seq_no) {
         sendto(sock_fd, &segment, sizeof(segment), 0,
                (struct sockaddr *)&dst_addr, sizeof(dst_addr));
-        printf("send seg: %5d, size: %5d!\n", idx, segment.length);
+        printf("send seg: %5d, size: %5d!\n", segment.seq_no, segment.length);
 
         // recvfrom with setsockopt
         if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,

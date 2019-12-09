@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
   }
 
   // get file
-  FILE *file = fopen(argv[1], "a");
+  FILE *file = fopen(argv[1], "w+t");
   for (int idx = 1; idx <= total_seg;) {
     struct segment_t segment;
 

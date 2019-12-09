@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
     int file_size = st.st_size;
 
     // init timeout setting
-    int expect_timeout = 1, repeat_timeout_counter = 0;
+    int expect_timeout = 1;
 
     // calculate total segment amount
     int total_seg = 0, ack_no = 0;
@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
 
       sendto(sock_fd, &segment, sizeof(segment), 0,
              (struct sockaddr *)&dst_addr, sizeof(dst_addr));
-      printf("send seg: %5d, size: %5d!\n", idx, segment.length);
+      printf("send seg: %5d, size: %5d!\n", segment.seq_no, segment.length);
 
       // recvfrom with select
       if (readable_select_timeout(sock_fd, expect_timeout, 0) == 0) {
@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
       while (ack_no != segment.seq_no) {
         sendto(sock_fd, &segment, sizeof(segment), 0,
                (struct sockaddr *)&dst_addr, sizeof(dst_addr));
-        printf("send seg: %5d, size: %5d!\n", idx, segment.length);
+        printf("send seg: %5d, size: %5d!\n", segment.seq_no, segment.length);
 
         // recvfrom with select
         if (readable_select_timeout(sock_fd, expect_timeout, 0) == 0) {
