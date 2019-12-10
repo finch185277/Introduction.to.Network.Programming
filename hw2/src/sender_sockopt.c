@@ -1,6 +1,5 @@
 // client
 #include <arpa/inet.h>
-#include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,9 +72,7 @@ int main(int argc, char *argv[]) {
       // recvfrom with setsockopt
       if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                    (struct sockaddr *)&src_addr, (socklen_t *)&sock_len) < 0) {
-        if (errno == EINTR) {
-          printf("socket timeout\n");
-        }
+        printf("socket timeout\n");
       }
     }
 
@@ -93,9 +90,7 @@ int main(int argc, char *argv[]) {
       // recvfrom with setsockopt
       if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                    (struct sockaddr *)&src_addr, (socklen_t *)&sock_len) < 0) {
-        if (errno == EINTR) {
-          printf("socket timeout\n");
-        }
+        printf("socket timeout\n");
       }
 
       int retry_counter = 0;
@@ -108,9 +103,7 @@ int main(int argc, char *argv[]) {
         if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                      (struct sockaddr *)&src_addr,
                      (socklen_t *)&sock_len) < 0) {
-          if (errno == EINTR) {
-            printf("socket timeout\n");
-          }
+          printf("socket timeout\n");
         }
 
         retry_counter++;

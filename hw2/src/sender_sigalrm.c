@@ -1,6 +1,5 @@
 // client
 #include <arpa/inet.h>
-#include <errno.h>
 #include <netdb.h>
 #include <signal.h>
 #include <stdio.h>
@@ -75,9 +74,7 @@ int main(int argc, char *argv[]) {
       alarm(expect_timeout);
       if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                    (struct sockaddr *)&src_addr, (socklen_t *)&sock_len) < 0) {
-        if (errno == EINTR) {
-          printf("socket timeout\n");
-        }
+        printf("socket timeout\n");
       } else {
         alarm(0);
       }
@@ -98,9 +95,7 @@ int main(int argc, char *argv[]) {
       alarm(expect_timeout);
       if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                    (struct sockaddr *)&src_addr, (socklen_t *)&sock_len) < 0) {
-        if (errno == EINTR) {
-          printf("socket timeout\n");
-        }
+        printf("socket timeout\n");
       } else {
         alarm(0);
       }
@@ -116,9 +111,7 @@ int main(int argc, char *argv[]) {
         if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                      (struct sockaddr *)&src_addr,
                      (socklen_t *)&sock_len) < 0) {
-          if (errno == EINTR) {
-            printf("socket timeout\n");
-          }
+          printf("socket timeout\n");
         } else {
           alarm(0);
         }
