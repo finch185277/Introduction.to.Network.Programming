@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #define BUF_SIZE 1000
+#define TERMINATE_RETRY_BOUNDARY 20
 
 struct segment_t {
   int seq_no;
@@ -117,7 +118,7 @@ int main(int argc, char *argv[]) {
         }
 
         retry_counter++;
-        if (retry_counter == 20) {
+        if (retry_counter == TERMINATE_RETRY_BOUNDARY) {
           printf("Connection terminated!\n");
           break;
         }
