@@ -1,5 +1,6 @@
 // client
 #include <arpa/inet.h>
+#include <math.h>
 #include <netdb.h>
 #include <signal.h>
 #include <stdio.h>
@@ -11,6 +12,8 @@
 
 #define BUF_SIZE 1000
 #define TERMINATE_RETRY_BOUNDARY 20
+#define TIMEOUT_BASE_VALUE 1000000
+#define TIMEOUT_ASCENT_THRESHOLD 10
 
 struct segment_t {
   int seq_no;
@@ -49,7 +52,9 @@ int main(int argc, char *argv[]) {
     siginterrupt(SIGALRM, 1);
 
     // init timeout setting
-    int expect_timeout = 1;
+    int log_counter = 2, repeat_timeout_counter = 0;
+    int expect_timeout =
+        TIMEOUT_BASE_VALUE * pow(log(log_counter++) / log(10), 2);
 
     // calculate total segment amount
     int total_seg = 0, ack_no = 0;
@@ -72,12 +77,19 @@ int main(int argc, char *argv[]) {
       printf("send total_seg!\n");
 
       // recvfrom with alarm
-      alarm(expect_timeout);
+      ualarm(expect_timeout, 0);
       if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                    (struct sockaddr *)&src_addr, (socklen_t *)&sock_len) < 0) {
         printf("socket timeout\n");
+        repeat_timeout_counter++;
+        if (repeat_timeout_counter == TIMEOUT_ASCENT_THRESHOLD) {
+          int expect_timeout =
+              TIMEOUT_BASE_VALUE * pow(log(log_counter++) / log(10), 2);
+          repeat_timeout_counter = 0;
+        }
       } else {
-        alarm(0);
+        ualarm(0, 0);
+        repeat_timeout_counter = 0;
       }
     }
 
@@ -93,12 +105,19 @@ int main(int argc, char *argv[]) {
       printf("send seg: %5d, size: %5d!\n", segment.seq_no, segment.length);
 
       // recvfrom with alarm
-      alarm(expect_timeout);
+      ualarm(expect_timeout, 0);
       if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                    (struct sockaddr *)&src_addr, (socklen_t *)&sock_len) < 0) {
         printf("socket timeout\n");
+        repeat_timeout_counter++;
+        if (repeat_timeout_counter == TIMEOUT_ASCENT_THRESHOLD) {
+          int expect_timeout =
+              TIMEOUT_BASE_VALUE * pow(log(log_counter++) / log(10), 2);
+          repeat_timeout_counter = 0;
+        }
       } else {
-        alarm(0);
+        ualarm(0, 0);
+        repeat_timeout_counter = 0;
       }
 
       int retry_counter = 0;
@@ -108,13 +127,20 @@ int main(int argc, char *argv[]) {
         printf("send seg: %5d, size: %5d!\n", segment.seq_no, segment.length);
 
         // recvfrom with alarm
-        alarm(expect_timeout);
+        ualarm(expect_timeout, 0);
         if (recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                      (struct sockaddr *)&src_addr,
                      (socklen_t *)&sock_len) < 0) {
           printf("socket timeout\n");
+          repeat_timeout_counter++;
+          if (repeat_timeout_counter == TIMEOUT_ASCENT_THRESHOLD) {
+            int expect_timeout =
+                TIMEOUT_BASE_VALUE * pow(log(log_counter++) / log(10), 2);
+            repeat_timeout_counter = 0;
+          }
         } else {
-          alarm(0);
+          ualarm(0, 0);
+          repeat_timeout_counter = 0;
         }
 
         retry_counter++;

@@ -1,5 +1,6 @@
 // client
 #include <arpa/inet.h>
+#include <math.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,6 +11,8 @@
 
 #define BUF_SIZE 1000
 #define TERMINATE_RETRY_BOUNDARY 20
+#define TIMEOUT_BASE_VALUE 1000000
+#define TIMEOUT_ASCENT_THRESHOLD 10
 
 struct segment_t {
   int seq_no;
@@ -53,7 +56,9 @@ int main(int argc, char *argv[]) {
     int file_size = st.st_size;
 
     // init timeout setting
-    int expect_timeout = 1;
+    int log_counter = 2, repeat_timeout_counter = 0;
+    int expect_timeout =
+        TIMEOUT_BASE_VALUE * pow(log(log_counter++) / log(10), 2);
 
     // calculate total segment amount
     int total_seg = 0, ack_no = 0;
@@ -76,11 +81,17 @@ int main(int argc, char *argv[]) {
       printf("send total_seg!\n");
 
       // recvfrom with select
-      if (readable_select_timeout(sock_fd, expect_timeout, 0) == 0) {
+      if (readable_select_timeout(sock_fd, 0, expect_timeout) == 0) {
         printf("socket timeout\n");
+        if (repeat_timeout_counter == TIMEOUT_ASCENT_THRESHOLD) {
+          int expect_timeout =
+              TIMEOUT_BASE_VALUE * pow(log(log_counter++) / log(10), 2);
+          repeat_timeout_counter = 0;
+        }
       } else {
         recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                  (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
+        repeat_timeout_counter = 0;
       }
     }
 
@@ -96,11 +107,17 @@ int main(int argc, char *argv[]) {
       printf("send seg: %5d, size: %5d!\n", segment.seq_no, segment.length);
 
       // recvfrom with select
-      if (readable_select_timeout(sock_fd, expect_timeout, 0) == 0) {
+      if (readable_select_timeout(sock_fd, 0, expect_timeout) == 0) {
         printf("socket timeout\n");
+        if (repeat_timeout_counter == TIMEOUT_ASCENT_THRESHOLD) {
+          int expect_timeout =
+              TIMEOUT_BASE_VALUE * pow(log(log_counter++) / log(10), 2);
+          repeat_timeout_counter = 0;
+        }
       } else {
         recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                  (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
+        repeat_timeout_counter = 0;
       }
 
       int retry_counter = 0;
@@ -110,11 +127,17 @@ int main(int argc, char *argv[]) {
         printf("send seg: %5d, size: %5d!\n", segment.seq_no, segment.length);
 
         // recvfrom with select
-        if (readable_select_timeout(sock_fd, expect_timeout, 0) == 0) {
+        if (readable_select_timeout(sock_fd, 0, expect_timeout) == 0) {
           printf("socket timeout\n");
+          if (repeat_timeout_counter == TIMEOUT_ASCENT_THRESHOLD) {
+            int expect_timeout =
+                TIMEOUT_BASE_VALUE * pow(log(log_counter++) / log(10), 2);
+            repeat_timeout_counter = 0;
+          }
         } else {
           recvfrom(sock_fd, &ack_no, sizeof(ack_no), 0,
                    (struct sockaddr *)&src_addr, (socklen_t *)&sock_len);
+          repeat_timeout_counter = 0;
         }
 
         retry_counter++;
