@@ -86,6 +86,7 @@ int main(int argc, char *argv[]) {
           setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
                      sizeof(struct timeval));
           repeat_timeout_counter = 0;
+          printf("timeout ascent %10d!\n", expect_timeout);
         }
       } else {
         repeat_timeout_counter = 0;
@@ -114,6 +115,7 @@ int main(int argc, char *argv[]) {
           setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
                      sizeof(struct timeval));
           repeat_timeout_counter = 0;
+          printf("timeout ascent %10d!\n", expect_timeout);
         }
       } else {
         repeat_timeout_counter = 0;
@@ -137,13 +139,15 @@ int main(int argc, char *argv[]) {
             setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
                        sizeof(struct timeval));
             repeat_timeout_counter = 0;
+            printf("timeout ascent %10d!\n", expect_timeout);
           }
         } else {
           repeat_timeout_counter = 0;
         }
 
         retry_counter++;
-        if (retry_counter == TERMINATE_RETRY_BOUNDARY) {
+        if (retry_counter == TERMINATE_RETRY_BOUNDARY && idx == total_seg) {
+          printf("Final timeout %10d ms!\n", expect_timeout / 1000);
           printf("Connection terminated!\n");
           break;
         }
@@ -152,6 +156,7 @@ int main(int argc, char *argv[]) {
       idx++;
 
       if (idx == total_seg + 1) {
+        printf("Final timeout %10d ms!\n", expect_timeout / 1000);
         printf("File transfer success!\n");
       }
     }
