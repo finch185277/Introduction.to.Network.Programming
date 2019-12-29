@@ -38,23 +38,37 @@ int main(int argc, char **argv) {
   write(sock_fd, argv[3], sizeof(argv[3]));
 
   for (;;) {
-    char send_buf[LINE_MAX];
-    int n = read(STDIN_FILENO, send_buf, LINE_MAX - 1);
+    char buf[LINE_MAX];
+    int n = read(STDIN_FILENO, buf, LINE_MAX - 1);
     if (n > 0) {
-      send_buf[n] = '\0';
-      if (strcmp(send_buf, "exit\n") == 0) {
-        write(sock_fd, send_buf, n);
+      buf[n] = '\0';
+      if (strcmp(buf, "exit\n") == 0) {
+        write(sock_fd, buf, n);
         close(sock_fd);
         break;
       }
-      write(sock_fd, send_buf, n);
+      write(sock_fd, buf, n);
     }
 
-    char recv_buf[LINE_MAX];
-    n = read(sock_fd, recv_buf, LINE_MAX - 1);
+    char file_name[LINE_MAX];
+    n = read(sock_fd, file_name, LINE_MAX - 1);
     if (n > 0) {
-      recv_buf[n] = '\0';
-      fprintf(stdout, "%s", recv_buf);
+      // get file name
+      file_name[n] = '\0';
+
+      // get file size
+      char file_size[LINE_MAX];
+      n = read(sock_fd, file_size, LINE_MAX - 1);
+      file_size[n] = '\0';
+      int size = atoi(file_size);
+
+      // get file content
+      char *content = new char[size];
+      FILE *fp = fopen(file_name, "w+t");
+      n = read(sock_fd, content, size);
+      write(fileno(fp), content, size);
+      fclose(fp);
+
     } else if (n == 0) {
       close(sock_fd);
       break;
