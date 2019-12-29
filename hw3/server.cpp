@@ -4,12 +4,26 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #define LINE_MAX 1024
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+
+void send_file(int fd, std::string file_name) {
+  FILE *fp = fopen(file_name.c_str(), "r");
+
+  fseek(fp, 0L, SEEK_END);
+  char *content = new char[ftell(fp)];
+  fseek(fp, 0L, SEEK_SET);
+
+  int n = read(fileno(fp), content, sizeof(content));
+  write(fd, content, sizeof(content));
+  return;
+}
 
 int main(int argc, char **argv) {
   if (argc != 2) {
@@ -50,17 +64,22 @@ int main(int argc, char **argv) {
       int n = read(cli_fd, buf, LINE_MAX - 1);
       buf[n] = '\0';
 
-      std::string name(buf);
-      auto user = list.find(name);
+      std::string user_name(buf);
+      auto user = list.find(user_name);
 
       flag = fcntl(cli_fd, F_GETFL, 0);
       fcntl(cli_fd, F_SETFL, flag | O_NONBLOCK);
 
-      if (user == list.end())
-        list.insert(
-            std::pair<std::string, std::unordered_set<int>>(name, {cli_fd}));
-      else
+      if (user == list.end()) {
+        mkdir(buf, 0755);
+        list.insert(std::pair<std::string, std::unordered_set<int>>(user_name,
+                                                                    {cli_fd}));
+      } else {
+        auto dir = dirs.find(user_name);
+        for (auto file_name : dir->second)
+          send_file(cli_fd, file_name);
         user->second.insert(cli_fd);
+      }
     }
 
     for (auto user : list) {
@@ -72,9 +91,36 @@ int main(int argc, char **argv) {
           if (strcmp(buf, "exit\n") == 0) {
             close(*cli);
             user.second.erase(cli);
-          } else {
-            for (auto fd : user.second)
-              write(fd, buf, n);
+          } else if (strcmp(buf, "put") == 0) {
+            // get file name
+            char file_name[LINE_MAX];
+            n = read(*cli, file_name, LINE_MAX - 1);
+            file_name[n] = '\0';
+
+            // get file size
+            char file_size[LINE_MAX];
+            n = read(*cli, file_size, LINE_MAX - 1);
+            file_size[n] = '\0';
+            int size = atoi(file_size);
+
+            // get file content
+            char *content = new char[size];
+            FILE *fp = fopen(file_name, "w+t");
+            n = read(*cli, content, size);
+            write(fileno(fp), content, size);
+            fclose(fp);
+
+            // record file name
+            std::string file(file_name);
+            auto dir = dirs.find(user.first);
+            dir->second.insert(file);
+
+            // sync with clients (same user)
+            for (auto fd : user.second) {
+              write(fd, file_name, sizeof(file_name));
+              write(fd, file_size, sizeof(file_size));
+              write(fd, content, sizeof(content));
+            }
           }
         }
       }
