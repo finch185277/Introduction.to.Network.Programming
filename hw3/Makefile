@@ -1,18 +1,18 @@
-test: test.c
+all: test-script server client
+
+test-script: test.c
 	gcc test.c -o test
 
-server: server.c
-	gcc server.c -o server
+server: server.cpp
+	g++ server.cpp -o server
 
-client: client.c
-	gcc client.c -o client
-
-all: test server client
+client: client.cpp
+	g++ client.cpp -o client
 
 .PHONY: demo clean
 
-demo: all
+test: all
 	./test . 8888 1
 
 clean:
-	rm test server client
+	rm -rf test server client
