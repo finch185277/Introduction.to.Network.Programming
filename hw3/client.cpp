@@ -8,6 +8,31 @@
 #include <unistd.h>
 
 #define LINE_MAX 1024
+#include <string>
+
+void send_file(int fd, std::string file_name) {
+  FILE *fp = fopen(file_name.c_str(), "r");
+  char send_buf[LINE_MAX];
+
+  fseek(fp, 0L, SEEK_END);
+  int size = ftell(fp);
+  char *content = new char[size];
+  fseek(fp, 0L, SEEK_SET);
+
+  // send file name
+  sprintf(send_buf, "%s", file_name.c_str());
+  write(fd, send_buf, sizeof(content));
+
+  // send file size
+  sprintf(send_buf, "%d", size);
+  write(fd, send_buf, sizeof(send_buf));
+
+  // send file content
+  int n = read(fileno(fp), content, sizeof(content));
+  write(fd, content, sizeof(content));
+
+  return;
+}
 
 int main(int argc, char **argv) {
   if (argc != 4) {
@@ -47,7 +72,18 @@ int main(int argc, char **argv) {
         close(sock_fd);
         break;
       }
-      write(sock_fd, buf, n);
+      char *tok = strtok(buf, " \n");
+      if (strcmp(tok, "put") == 0) {
+        write(sock_fd, tok, sizeof(tok));
+
+        char file_name[LINE_MAX];
+        tok = strtok(NULL, " \n");
+        strcpy(file_name, tok);
+        std::string file(file_name);
+
+        printf("wanna put %s\n", file_name);
+        send_file(sock_fd, file);
+      }
     }
 
     char file_name[LINE_MAX];
