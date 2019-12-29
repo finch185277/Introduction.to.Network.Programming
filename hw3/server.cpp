@@ -9,7 +9,7 @@
 #define LINE_MAX 1024
 #include <string>
 #include <unordered_map>
-#include <vector>
+#include <unordered_set>
 
 int main(int argc, char **argv) {
   if (argc != 2) {
@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
   FD_SET(listen_fd, &new_set);
   int max_fd = listen_fd + 1;
 
-  std::unordered_map<std::string, std::vector<int>> list;
+  std::unordered_map<std::string, std::unordered_set<int>> list;
 
   for (;;) {
     r_set = new_set;
@@ -49,15 +49,17 @@ int main(int argc, char **argv) {
       int cli_fd = accept(listen_fd, (struct sockaddr *)&cli_addr, &cli_len);
 
       char buf[LINE_MAX];
-      int n = read(cli_fd, buf, LINE_MAX);
+      int n = read(cli_fd, buf, LINE_MAX - 1);
+      buf[n] = '\0';
 
       std::string name(buf);
-      auto client = list.find(name);
+      auto user = list.find(name);
 
-      if (client == list.end()) {
-        list.insert(std::pair<std::string, std::vector<int>>(name, {cli_fd}));
+      if (user == list.end()) {
+        list.insert(
+            std::pair<std::string, std::unordered_set<int>>(name, {cli_fd}));
       } else {
-        client->second.emplace_back(cli_fd);
+        user->second.insert(cli_fd);
       }
 
       if (cli_fd >= max_fd)
@@ -67,17 +69,19 @@ int main(int argc, char **argv) {
       nready--;
     }
 
-    for (auto client : list) {
-      for (auto fd = client.second.begin(); fd != client.second.end(); fd++) {
-        if (FD_ISSET(*fd, &r_set)) {
+    for (auto user : list) {
+      for (auto cli = user.second.begin(); cli != user.second.end(); cli++) {
+        if (FD_ISSET(*cli, &r_set)) {
           char buf[LINE_MAX];
-          int n = read(*fd, buf, LINE_MAX);
+          int n = read(*cli, buf, LINE_MAX - 1);
+          buf[n] = '\0';
           if (n != 0) {
-            write(*fd, buf, n);
+            for (auto fd : user.second)
+              write(fd, buf, n);
           } else {
-            close(*fd);
-            FD_CLR(*fd, &new_set);
-            client.second.erase(fd);
+            close(*cli);
+            FD_CLR(*cli, &new_set);
+            user.second.erase(cli);
           }
           nready--;
         }
