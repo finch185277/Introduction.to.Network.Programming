@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,38 +28,36 @@ int main(int argc, char **argv) {
   int sock_fd;
   sock_fd = socket(AF_INET, SOCK_STREAM, 0);
 
+  int flag = fcntl(sock_fd, F_GETFL, 0);
+  fcntl(sock_fd, F_SETFL, flag | O_NONBLOCK);
+
+  flag = fcntl(STDIN_FILENO, F_GETFL, 0);
+  fcntl(STDIN_FILENO, F_SETFL, flag | O_NONBLOCK);
+
   connect(sock_fd, (struct sockaddr *)&srv_addr, sizeof(srv_addr));
   write(sock_fd, argv[3], sizeof(argv[3]));
 
-  fd_set r_set;
-  FD_ZERO(&r_set);
-  int max_fd = (sock_fd > STDIN_FILENO ? sock_fd : STDIN_FILENO) + 1;
-
   for (;;) {
-    FD_SET(STDIN_FILENO, &r_set);
-    FD_SET(sock_fd, &r_set);
-    select(max_fd, &r_set, NULL, NULL, NULL);
-
-    if (FD_ISSET(STDIN_FILENO, &r_set)) {
-      char buf[LINE_MAX];
-      int n = read(STDIN_FILENO, buf, LINE_MAX - 1);
-      buf[n] = '\0';
-      if (strcmp(buf, "exit\n") == 0) {
+    char send_buf[LINE_MAX];
+    int n = read(STDIN_FILENO, send_buf, LINE_MAX - 1);
+    if (n > 0) {
+      send_buf[n] = '\0';
+      if (strcmp(send_buf, "exit\n") == 0) {
+        write(sock_fd, send_buf, n);
         close(sock_fd);
         break;
       }
-      write(sock_fd, buf, n);
+      write(sock_fd, send_buf, n);
     }
 
-    if (FD_ISSET(sock_fd, &r_set)) {
-      char buf[LINE_MAX];
-      int n = read(sock_fd, buf, LINE_MAX - 1);
-      buf[n] = '\0';
-      if (n == 0) {
-        close(sock_fd);
-        break;
-      }
-      fprintf(stdout, "%s", buf);
+    char recv_buf[LINE_MAX];
+    n = read(sock_fd, recv_buf, LINE_MAX - 1);
+    if (n > 0) {
+      recv_buf[n] = '\0';
+      fprintf(stdout, "%s", recv_buf);
+    } else if (n == 0) {
+      close(sock_fd);
+      break;
     }
   }
 
