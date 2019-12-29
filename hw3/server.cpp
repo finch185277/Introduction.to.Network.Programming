@@ -15,13 +15,25 @@
 
 void send_file(int fd, std::string file_name) {
   FILE *fp = fopen(file_name.c_str(), "r");
+  char send_buf[LINE_MAX];
 
   fseek(fp, 0L, SEEK_END);
-  char *content = new char[ftell(fp)];
+  int size = ftell(fp);
+  char *content = new char[size];
   fseek(fp, 0L, SEEK_SET);
 
+  // send file name
+  sprintf(send_buf, "%s", file_name.c_str());
+  write(fd, send_buf, sizeof(content));
+
+  // send file size
+  sprintf(send_buf, "%d", size);
+  write(fd, send_buf, sizeof(send_buf));
+
+  // send file content
   int n = read(fileno(fp), content, sizeof(content));
   write(fd, content, sizeof(content));
+
   return;
 }
 
@@ -71,13 +83,19 @@ int main(int argc, char **argv) {
       fcntl(cli_fd, F_SETFL, flag | O_NONBLOCK);
 
       if (user == list.end()) {
-        mkdir(buf, 0755);
+        // create directory for user
+        mkdir(user_name.c_str(), 0755);
+
+        // add new user
         list.insert(std::pair<std::string, std::unordered_set<int>>(user_name,
                                                                     {cli_fd}));
       } else {
+        // sync client files
         auto dir = dirs.find(user_name);
         for (auto file_name : dir->second)
-          send_file(cli_fd, file_name);
+          send_file(cli_fd, user_name + "/" + file_name);
+
+        // add client
         user->second.insert(cli_fd);
       }
     }
@@ -96,6 +114,7 @@ int main(int argc, char **argv) {
             char file_name[LINE_MAX];
             n = read(*cli, file_name, LINE_MAX - 1);
             file_name[n] = '\0';
+            printf("get file %s\n", file_name);
 
             // get file size
             char file_size[LINE_MAX];
@@ -117,9 +136,8 @@ int main(int argc, char **argv) {
 
             // sync with clients (same user)
             for (auto fd : user.second) {
-              write(fd, file_name, sizeof(file_name));
-              write(fd, file_size, sizeof(file_size));
-              write(fd, content, sizeof(content));
+              std::string file(file_name);
+              send_file(fd, user.first + "/" + file);
             }
           }
         }
