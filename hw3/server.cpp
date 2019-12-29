@@ -38,16 +38,14 @@ int main(int argc, char **argv) {
   int max_fd = listen_fd + 1;
 
   std::unordered_map<std::string, std::unordered_set<int>> list;
+  std::unordered_map<std::string, std::unordered_set<std::string>> dirs;
 
   for (;;) {
-    r_set = new_set;
-    int nready = select(max_fd, &r_set, NULL, NULL, NULL);
+    struct sockaddr_in cli_addr;
+    socklen_t cli_len = sizeof(cli_addr);
+    int cli_fd = accept(listen_fd, (struct sockaddr *)&cli_addr, &cli_len);
 
-    if (FD_ISSET(listen_fd, &r_set)) {
-      struct sockaddr_in cli_addr;
-      socklen_t cli_len = sizeof(cli_addr);
-      int cli_fd = accept(listen_fd, (struct sockaddr *)&cli_addr, &cli_len);
-
+    if (cli_fd > 0) {
       char buf[LINE_MAX];
       int n = read(cli_fd, buf, LINE_MAX - 1);
       buf[n] = '\0';
@@ -55,35 +53,29 @@ int main(int argc, char **argv) {
       std::string name(buf);
       auto user = list.find(name);
 
-      if (user == list.end()) {
+      flag = fcntl(cli_fd, F_GETFL, 0);
+      fcntl(cli_fd, F_SETFL, flag | O_NONBLOCK);
+
+      if (user == list.end())
         list.insert(
             std::pair<std::string, std::unordered_set<int>>(name, {cli_fd}));
-      } else {
+      else
         user->second.insert(cli_fd);
-      }
-
-      if (cli_fd >= max_fd)
-        max_fd = cli_fd + 1;
-
-      FD_SET(cli_fd, &new_set);
-      nready--;
     }
 
     for (auto user : list) {
       for (auto cli = user.second.begin(); cli != user.second.end(); cli++) {
-        if (FD_ISSET(*cli, &r_set)) {
-          char buf[LINE_MAX];
-          int n = read(*cli, buf, LINE_MAX - 1);
+        char buf[LINE_MAX];
+        int n = read(*cli, buf, LINE_MAX - 1);
+        if (n > 0) {
           buf[n] = '\0';
-          if (n != 0) {
+          if (strcmp(buf, "exit\n") == 0) {
+            close(*cli);
+            user.second.erase(cli);
+          } else {
             for (auto fd : user.second)
               write(fd, buf, n);
-          } else {
-            close(*cli);
-            FD_CLR(*cli, &new_set);
-            user.second.erase(cli);
           }
-          nready--;
         }
       }
     }
