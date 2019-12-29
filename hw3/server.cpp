@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define LINE_MAX 1060
+#define LINE_MAX 1050
 #include <fstream>
 #include <string>
 #include <unordered_map>
@@ -33,13 +33,17 @@ void send_file(int fd, std::string file_name) {
   infile.seekg(0, std::ios_base::beg);
   int file_size = end - begin;
 
+  struct segment_t segment;
+  strcpy(segment.action, "put");
+  sprintf(segment.file_name, "%s", file_name.c_str());
+  sprintf(segment.file_size, "%d", file_size);
+  write(fd, &segment, sizeof(segment));
+
   int loops = (file_size / 1000) + 1;
   for (int i = 1; i <= loops; i++) {
-    struct segment_t segment;
     sprintf(segment.seq_no, "%d", i);
-    sprintf(segment.file_name, "%s", file_name.c_str());
-    sprintf(segment.file_size, "%d", file_size);
 
+    memset(&segment.content, 0, sizeof(segment.content));
     if (i != loops)
       infile.read(segment.content, 1000);
     else
@@ -116,17 +120,18 @@ int main(int argc, char **argv) {
         int n = read(*cli, &segment, sizeof(segment));
         if (n > 0) {
           if (strcmp(segment.action, "exit") == 0) {
+            printf("wanna get file: %s\n", segment.file_name);
             close(*cli);
             user.second.erase(cli);
           } else if (strcmp(segment.action, "put") == 0) {
+            printf("wanna get file: %s\n", segment.file_name);
             std::string file(segment.file_name);
             file = user.first + "/" + file;
             FILE *fp = fopen(file.c_str(), "w+t");
 
-            write(fileno(fp), segment.content, atoi(segment.seg_size));
-
             int loops = (atoi(segment.file_size) / 1000) + 1;
-            for (int i = 2; i <= loops; i++) {
+            for (int i = 1; i <= loops; i++) {
+              int n = read(*cli, &segment, sizeof(segment));
               write(fileno(fp), segment.content, atoi(segment.seg_size));
             }
 

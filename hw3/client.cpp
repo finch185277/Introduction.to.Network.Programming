@@ -30,13 +30,17 @@ void send_file(int fd, std::string file_name) {
   infile.seekg(0, std::ios_base::beg);
   int file_size = end - begin;
 
+  struct segment_t segment;
+  strcpy(segment.action, "put");
+  sprintf(segment.file_name, "%s", file_name.c_str());
+  sprintf(segment.file_size, "%d", file_size);
+  write(fd, &segment, sizeof(segment));
+
   int loops = (file_size / 1000) + 1;
   for (int i = 1; i <= loops; i++) {
-    struct segment_t segment;
     sprintf(segment.seq_no, "%d", i);
-    sprintf(segment.file_name, "%s", file_name.c_str());
-    sprintf(segment.file_size, "%d", file_size);
 
+    memset(&segment.content, 0, sizeof(segment.content));
     if (i != loops)
       infile.read(segment.content, 1000);
     else
@@ -88,8 +92,7 @@ int main(int argc, char **argv) {
       }
       char *tok = strtok(buf, " \n");
       if (strcmp(tok, "put") == 0) {
-        write(sock_fd, tok, sizeof(tok));
-
+        // get file name
         char file_name[LINE_MAX];
         tok = strtok(NULL, " \n");
         strcpy(file_name, tok);
@@ -104,10 +107,9 @@ int main(int argc, char **argv) {
     if (n > 0) {
       FILE *fp = fopen(segment.file_name, "w+t");
 
-      write(fileno(fp), segment.content, atoi(segment.seg_size));
-
       int loops = (atoi(segment.file_size) / 1000) + 1;
-      for (int i = 2; i <= loops; i++) {
+      for (int i = 1; i <= loops; i++) {
+        n = read(sock_fd, &segment, sizeof(segment));
         write(fileno(fp), segment.content, atoi(segment.seg_size));
       }
 
