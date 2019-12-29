@@ -9,30 +9,38 @@
 #include <unistd.h>
 
 #define LINE_MAX 1024
+#include <fstream>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 
 void send_file(int fd, std::string file_name) {
-  FILE *fp = fopen(file_name.c_str(), "r");
   char send_buf[LINE_MAX];
+  std::ifstream infile;
+  infile.open(file_name, std::ios_base::binary);
 
-  fseek(fp, 0L, SEEK_END);
-  int size = ftell(fp);
-  char *content = new char[size];
-  fseek(fp, 0L, SEEK_SET);
+  const auto begin = infile.tellg();
+  infile.seekg(0, std::ios_base::end);
+  const auto end = infile.tellg();
+  infile.seekg(0, std::ios_base::beg);
+  int file_size = end - begin;
 
   // send file name
   sprintf(send_buf, "%s", file_name.c_str());
-  write(fd, send_buf, sizeof(content));
+  write(fd, send_buf, sizeof(file_name));
+  printf("send name: [%s]\n", file_name.c_str());
 
   // send file size
-  sprintf(send_buf, "%d", size);
+  sprintf(send_buf, "%d", file_size);
   write(fd, send_buf, sizeof(send_buf));
+  printf("send size: %d\n", file_size);
 
   // send file content
-  int n = read(fileno(fp), content, sizeof(content));
-  write(fd, content, sizeof(content));
+  char *content = new char[file_size];
+  infile.read(content, file_size);
+  write(fd, content, file_size);
+  printf("send content: %s\n", content);
+  delete content;
 
   return;
 }
@@ -114,13 +122,14 @@ int main(int argc, char **argv) {
             char file_name[LINE_MAX];
             n = read(*cli, file_name, LINE_MAX - 1);
             file_name[n] = '\0';
-            printf("get file %s\n", file_name);
+            printf("get file name: %s\n", file_name);
 
             // get file size
             char file_size[LINE_MAX];
             n = read(*cli, file_size, LINE_MAX - 1);
             file_size[n] = '\0';
             int size = atoi(file_size);
+            printf("get file size: %d\n", size);
 
             // get file content
             char *content = new char[size];
@@ -128,6 +137,7 @@ int main(int argc, char **argv) {
             n = read(*cli, content, size);
             write(fileno(fp), content, size);
             fclose(fp);
+            printf("get file content: %s\n", content);
 
             // record file name
             std::string file(file_name);
