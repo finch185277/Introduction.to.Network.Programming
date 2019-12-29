@@ -1,5 +1,3 @@
-<div id="doc" class="markdown-body container-fluid comment-enabled" data-hard-breaks="true">
-
 # Homework III Non-Blocking File Transfer
 
 In this homework, you have to practice Nonblocking I/O in a network program.
@@ -307,6 +305,7 @@ The following cases will be executed one by one.
     [Upload] testfile5 Start!
     Progress : [######################]
     [Upload] testfile5 Finish!
+
     # Terminal 1
     [user@inp1 ~/hw3/1 ]
     [Download] testfile5 Start!
@@ -407,7 +406,9 @@ You have to add `pid <process id>` before your client output any information.
     Pid: 18170 [Download]  testfile Finish!
 
 **Do not output pid: -100%**
+
 **Output your own debug message: -20%**
+
 **<HINT>**: You can open a file and write your debug message in that file.
 
 </div>
