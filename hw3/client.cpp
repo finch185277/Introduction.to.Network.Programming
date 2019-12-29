@@ -7,12 +7,20 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define LINE_MAX 1024
+#define LINE_MAX 1050
 #include <fstream>
 #include <string>
 
+struct segment_t {
+  char seq_no[10];
+  char action[10];
+  char file_name[20];
+  char file_size[10];
+  char seg_size[10];
+  char content[1000];
+};
+
 void send_file(int fd, std::string file_name) {
-  char send_buf[LINE_MAX];
   std::ifstream infile;
   infile.open(file_name, std::ios_base::binary);
 
@@ -22,22 +30,20 @@ void send_file(int fd, std::string file_name) {
   infile.seekg(0, std::ios_base::beg);
   int file_size = end - begin;
 
-  // send file name
-  sprintf(send_buf, "%s", file_name.c_str());
-  write(fd, send_buf, sizeof(file_name));
-  printf("send name: [%s]\n", file_name.c_str());
+  int loops = (file_size / 1000) + 1;
+  for (int i = 1; i <= loops; i++) {
+    struct segment_t segment;
+    sprintf(segment.seq_no, "%d", i);
+    sprintf(segment.file_name, "%s", file_name.c_str());
+    sprintf(segment.file_size, "%d", file_size);
 
-  // send file size
-  sprintf(send_buf, "%d", file_size);
-  write(fd, send_buf, sizeof(send_buf));
-  printf("send size: %d\n", file_size);
+    if (i != loops)
+      infile.read(segment.content, 1000);
+    else
+      infile.read(segment.content, file_size % 1000);
 
-  // send file content
-  char *content = new char[file_size];
-  infile.read(content, file_size);
-  write(fd, content, file_size);
-  printf("send content: %s\n", content);
-  delete content;
+    write(fd, &segment, sizeof(segment));
+  }
 
   return;
 }
@@ -89,28 +95,22 @@ int main(int argc, char **argv) {
         strcpy(file_name, tok);
         std::string file(file_name);
 
-        printf("wanna put %s\n", file_name);
         send_file(sock_fd, file);
       }
     }
 
-    char file_name[LINE_MAX];
-    n = read(sock_fd, file_name, LINE_MAX - 1);
+    struct segment_t segment;
+    n = read(sock_fd, &segment, sizeof(segment));
     if (n > 0) {
-      // get file name
-      file_name[n] = '\0';
+      FILE *fp = fopen(segment.file_name, "w+t");
 
-      // get file size
-      char file_size[LINE_MAX];
-      n = read(sock_fd, file_size, LINE_MAX - 1);
-      file_size[n] = '\0';
-      int size = atoi(file_size);
+      write(fileno(fp), segment.content, atoi(segment.seg_size));
 
-      // get file content
-      char *content = new char[size];
-      FILE *fp = fopen(file_name, "w+t");
-      n = read(sock_fd, content, size);
-      write(fileno(fp), content, size);
+      int loops = (atoi(segment.file_size) / 1000) + 1;
+      for (int i = 2; i <= loops; i++) {
+        write(fileno(fp), segment.content, atoi(segment.seg_size));
+      }
+
       fclose(fp);
 
     } else if (n == 0) {

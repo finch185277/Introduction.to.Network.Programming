@@ -8,14 +8,22 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define LINE_MAX 1024
+#define LINE_MAX 1060
 #include <fstream>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 
+struct segment_t {
+  char seq_no[10];
+  char action[10];
+  char file_name[20];
+  char file_size[10];
+  char seg_size[10];
+  char content[1000];
+};
+
 void send_file(int fd, std::string file_name) {
-  char send_buf[LINE_MAX];
   std::ifstream infile;
   infile.open(file_name, std::ios_base::binary);
 
@@ -25,22 +33,20 @@ void send_file(int fd, std::string file_name) {
   infile.seekg(0, std::ios_base::beg);
   int file_size = end - begin;
 
-  // send file name
-  sprintf(send_buf, "%s", file_name.c_str());
-  write(fd, send_buf, sizeof(file_name));
-  printf("send name: [%s]\n", file_name.c_str());
+  int loops = (file_size / 1000) + 1;
+  for (int i = 1; i <= loops; i++) {
+    struct segment_t segment;
+    sprintf(segment.seq_no, "%d", i);
+    sprintf(segment.file_name, "%s", file_name.c_str());
+    sprintf(segment.file_size, "%d", file_size);
 
-  // send file size
-  sprintf(send_buf, "%d", file_size);
-  write(fd, send_buf, sizeof(send_buf));
-  printf("send size: %d\n", file_size);
+    if (i != loops)
+      infile.read(segment.content, 1000);
+    else
+      infile.read(segment.content, file_size % 1000);
 
-  // send file content
-  char *content = new char[file_size];
-  infile.read(content, file_size);
-  write(fd, content, file_size);
-  printf("send content: %s\n", content);
-  delete content;
+    write(fd, &segment, sizeof(segment));
+  }
 
   return;
 }
@@ -66,10 +72,6 @@ int main(int argc, char **argv) {
 
   int flag = fcntl(listen_fd, F_GETFL, 0);
   fcntl(listen_fd, F_SETFL, flag | O_NONBLOCK);
-
-  fd_set new_set, r_set;
-  FD_SET(listen_fd, &new_set);
-  int max_fd = listen_fd + 1;
 
   std::unordered_map<std::string, std::unordered_set<int>> list;
   std::unordered_map<std::string, std::unordered_set<std::string>> dirs;
@@ -101,7 +103,7 @@ int main(int argc, char **argv) {
         // sync client files
         auto dir = dirs.find(user_name);
         for (auto file_name : dir->second)
-          send_file(cli_fd, user_name + "/" + file_name);
+          send_file(cli_fd, file_name);
 
         // add client
         user->second.insert(cli_fd);
@@ -110,44 +112,33 @@ int main(int argc, char **argv) {
 
     for (auto user : list) {
       for (auto cli = user.second.begin(); cli != user.second.end(); cli++) {
-        char buf[LINE_MAX];
-        int n = read(*cli, buf, LINE_MAX - 1);
+        struct segment_t segment;
+        int n = read(*cli, &segment, sizeof(segment));
         if (n > 0) {
-          buf[n] = '\0';
-          if (strcmp(buf, "exit\n") == 0) {
+          if (strcmp(segment.action, "exit") == 0) {
             close(*cli);
             user.second.erase(cli);
-          } else if (strcmp(buf, "put") == 0) {
-            // get file name
-            char file_name[LINE_MAX];
-            n = read(*cli, file_name, LINE_MAX - 1);
-            file_name[n] = '\0';
-            printf("get file name: %s\n", file_name);
+          } else if (strcmp(segment.action, "put") == 0) {
+            std::string file(segment.file_name);
+            file = user.first + "/" + file;
+            FILE *fp = fopen(file.c_str(), "w+t");
 
-            // get file size
-            char file_size[LINE_MAX];
-            n = read(*cli, file_size, LINE_MAX - 1);
-            file_size[n] = '\0';
-            int size = atoi(file_size);
-            printf("get file size: %d\n", size);
+            write(fileno(fp), segment.content, atoi(segment.seg_size));
 
-            // get file content
-            char *content = new char[size];
-            FILE *fp = fopen(file_name, "w+t");
-            n = read(*cli, content, size);
-            write(fileno(fp), content, size);
+            int loops = (atoi(segment.file_size) / 1000) + 1;
+            for (int i = 2; i <= loops; i++) {
+              write(fileno(fp), segment.content, atoi(segment.seg_size));
+            }
+
             fclose(fp);
-            printf("get file content: %s\n", content);
 
             // record file name
-            std::string file(file_name);
             auto dir = dirs.find(user.first);
             dir->second.insert(file);
 
             // sync with clients (same user)
             for (auto fd : user.second) {
-              std::string file(file_name);
-              send_file(fd, user.first + "/" + file);
+              send_file(fd, file);
             }
           }
         }
