@@ -68,6 +68,7 @@ int main(int argc, char **argv) {
 
   std::unordered_map<std::string, std::unordered_set<int>> list;
   std::unordered_map<std::string, std::unordered_set<std::string>> dirs;
+  std::unordered_map<int, std::pair<std::string, int>> uc_fds;
 
   for (;;) {
     struct sockaddr_in cli_addr;
@@ -107,6 +108,35 @@ int main(int argc, char **argv) {
 
     for (auto user : list) {
       for (auto cli = user.second.begin(); cli != user.second.end(); cli++) {
+        auto uc_fd = uc_fds.find(*cli);
+        if (uc_fd != uc_fds.end()) {
+          std::string file(uc_fd->second.first);
+          int size = uc_fd->second.second;
+
+          char *content = new char[size];
+          printf("content size: %d\n", size);
+          int n = read(*cli, content, size);
+
+          if (n == size) {
+            FILE *fp = fopen(file.c_str(), "w+");
+            printf("[re]opened file: %s, nbytes: %d\n", file.c_str(), n);
+            write(fileno(fp), content, size);
+            fclose(fp);
+
+            uc_fds.erase(*cli);
+
+            // record file name
+            auto dir = dirs.find(user.first);
+            dir->second.insert(file);
+          } else {
+            printf("[re]waiting, nbytes: %d\n", n);
+            uc_fds.erase(*cli);
+            continue;
+          }
+
+          delete content;
+        }
+
         struct segment_t segment;
         int n = read(*cli, &segment, sizeof(segment));
         if (n > 0) {
@@ -124,25 +154,28 @@ int main(int argc, char **argv) {
             int size = atoi(segment.file_size);
             char *content = new char[size];
             printf("content size: %d\n", size);
-
             int n = read(*cli, content, size);
 
-            delete content;
-
             if (n == size) {
-              FILE *fp = fopen(exact_file.c_str(), "w+t");
+              FILE *fp = fopen(exact_file.c_str(), "w+");
               printf("opened file: %s, nbytes: %d\n", exact_file.c_str(), n);
               write(fileno(fp), content, size);
               fclose(fp);
               // record file name
               auto dir = dirs.find(user.first);
               dir->second.insert(exact_file);
+            } else {
+              printf("waiting, nbytes: %d\n", n);
+              uc_fds.insert(std::pair<int, std::pair<std::string, int>>(
+                  *cli, std::pair<std::string, int>(exact_file, size)));
             }
 
+            delete content;
+
             // sync with clients (same user)
-            for (auto fd : user.second) {
-              send_file(fd, exact_file);
-            }
+            // for (auto fd : user.second) {
+            //   send_file(fd, exact_file);
+            // }
           }
         }
       }

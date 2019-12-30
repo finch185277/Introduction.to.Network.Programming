@@ -31,11 +31,13 @@ void send_file(int fd, std::string file_name) {
   strcpy(segment.action, "put");
   sprintf(segment.file_name, "%s", file_name.c_str());
   sprintf(segment.file_size, "%d", file_size);
-  write(fd, &segment, sizeof(segment));
+  int n = write(fd, &segment, sizeof(segment));
+  printf("send segment %d bytes\n", n);
 
   char *content = new char[file_size];
   infile.read(content, file_size);
-  write(fd, content, file_size);
+  n = write(fd, content, file_size);
+  printf("send content %d bytes\n", n);
   delete content;
 
   return;
