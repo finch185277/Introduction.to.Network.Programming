@@ -8,13 +8,15 @@
 #include <unistd.h>
 
 #define LINE_MAX 1050
+#define CONTENT_SIZE 1000
 #include <fstream>
 #include <string>
 
 struct segment_t {
   char action[10];
   char file_name[20];
-  char file_size[10];
+  char file_size[20];
+  char content[CONTENT_SIZE];
 };
 
 void send_file(int fd, std::string file_name) {
@@ -34,11 +36,26 @@ void send_file(int fd, std::string file_name) {
   int n = write(fd, &segment, sizeof(segment));
   printf("send segment %d bytes\n", n);
 
-  char *content = new char[file_size];
-  infile.read(content, file_size);
-  n = write(fd, content, file_size);
-  printf("send content %d bytes\n", n);
-  delete content;
+  int loops, last_size;
+  if (file_size % CONTENT_SIZE == 0) {
+    loops = file_size / CONTENT_SIZE;
+    last_size = CONTENT_SIZE;
+  } else {
+    loops = (file_size / CONTENT_SIZE) + 1;
+    last_size = file_size % CONTENT_SIZE;
+  }
+
+  for (int i = 1; i <= loops; i++) {
+    int size;
+    if (i == loops)
+      size = last_size;
+    else
+      size = CONTENT_SIZE;
+    char content[size];
+    infile.read(content, size);
+    n = write(fd, content, size);
+    printf("send content %d bytes <-- %d\n", n, i);
+  }
 
   return;
 }
