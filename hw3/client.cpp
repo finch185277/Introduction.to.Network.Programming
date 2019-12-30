@@ -12,12 +12,9 @@
 #include <string>
 
 struct segment_t {
-  char seq_no[10];
   char action[10];
   char file_name[20];
   char file_size[10];
-  char seg_size[10];
-  char content[1000];
 };
 
 void send_file(int fd, std::string file_name) {
@@ -36,18 +33,10 @@ void send_file(int fd, std::string file_name) {
   sprintf(segment.file_size, "%d", file_size);
   write(fd, &segment, sizeof(segment));
 
-  int loops = (file_size / 1000) + 1;
-  for (int i = 1; i <= loops; i++) {
-    sprintf(segment.seq_no, "%d", i);
-
-    memset(&segment.content, 0, sizeof(segment.content));
-    if (i != loops)
-      infile.read(segment.content, 1000);
-    else
-      infile.read(segment.content, file_size % 1000);
-
-    write(fd, &segment, sizeof(segment));
-  }
+  char *content = new char[file_size];
+  infile.read(content, file_size);
+  write(fd, content, file_size);
+  delete content;
 
   return;
 }
@@ -105,16 +94,16 @@ int main(int argc, char **argv) {
     struct segment_t segment;
     n = read(sock_fd, &segment, sizeof(segment));
     if (n > 0) {
-      FILE *fp = fopen(segment.file_name, "w+t");
+      if (strcmp(segment.action, "put") == 0) {
+        FILE *fp = fopen(segment.file_name, "w+t");
 
-      int loops = (atoi(segment.file_size) / 1000) + 1;
-      for (int i = 1; i <= loops; i++) {
-        n = read(sock_fd, &segment, sizeof(segment));
-        write(fileno(fp), segment.content, atoi(segment.seg_size));
+        char *content = new char[atoi(segment.file_size)];
+        n = read(sock_fd, content, atoi(segment.file_size));
+        write(fileno(fp), content, atoi(segment.file_size));
+        delete content;
+
+        fclose(fp);
       }
-
-      fclose(fp);
-
     } else if (n == 0) {
       close(sock_fd);
       break;
