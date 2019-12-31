@@ -103,7 +103,6 @@ int main(int argc, char **argv) {
         sprintf(segment.file_name, "%s", file_name);
         sprintf(segment.file_size, "%d", file_size);
         int n = write(sock_fd, &segment, sizeof(segment));
-        // printf("send segment %d bytes\n", n);
 
         // record upload stat
         struct proc_file_t proc_file;
@@ -203,7 +202,6 @@ int main(int argc, char **argv) {
       if (n < 0)
         continue;
       write(sock_fd, content, n);
-      // printf("already write content %d bytes\n", already_read + n);
       fclose(fp);
 
       if (already_read + n == file_size) {
