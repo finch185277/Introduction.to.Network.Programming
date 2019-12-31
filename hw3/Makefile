@@ -1,10 +1,11 @@
-TEST_OUTPUT = 1 2 3 4 tom frank
+TEST_OUTPUT = tom frank
 EXEC_FILES = test server client
+TEST_SCRIPT = test
 
-all: test-script server client
+all: script server client
 
-test-script:
-	gcc test.c -o test
+script:
+	gcc test.c -o $(TEST_SCRIPT)
 
 server:
 	g++ server.cpp -o server
@@ -12,10 +13,10 @@ server:
 client:
 	g++ client.cpp -o client
 
-.PHONY: demo clean
+.PHONY: test clean
 
 test: all
-	./test . 8686 1
+	./$(TEST_SCRIPT) . 8686 1
 
 clean:
 	rm -rf $(EXEC_FILES) $(TEST_OUTPUT)
