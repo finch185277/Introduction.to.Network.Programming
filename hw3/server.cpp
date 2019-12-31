@@ -27,30 +27,6 @@ struct proc_file_t {
   int already_read;
 };
 
-void send_file(int fd, std::string file_name) {
-  std::ifstream infile;
-  infile.open(file_name, std::ios_base::binary);
-
-  const auto begin = infile.tellg();
-  infile.seekg(0, std::ios_base::end);
-  const auto end = infile.tellg();
-  infile.seekg(0, std::ios_base::beg);
-  int file_size = end - begin;
-
-  struct segment_t segment;
-  strcpy(segment.action, "put");
-  sprintf(segment.file_name, "%s", file_name.c_str());
-  sprintf(segment.file_size, "%d", file_size);
-  write(fd, &segment, sizeof(segment));
-
-  char *content = new char[file_size];
-  infile.read(content, file_size);
-  write(fd, content, file_size);
-  delete content;
-
-  return;
-}
-
 int main(int argc, char **argv) {
   if (argc != 2) {
     printf("Usage: %s <SERVER PORT>\n", argv[0]);
@@ -113,11 +89,6 @@ int main(int argc, char **argv) {
             std::pair<std::string, std::unordered_set<std::string>>(user_name,
                                                                     {}));
       } else {
-        // sync client files
-        // auto dir = dirs.find(user_name);
-        // for (auto file_name : dir->second)
-        //   send_file(cli_fd, file_name);
-
         // add new client
         user->second.insert(cli_fd);
       }
@@ -130,16 +101,82 @@ int main(int argc, char **argv) {
     for (auto user : user_lists) {
       std::string user_name(user.first);
       for (auto cli_fd : user.second) {
-        // check whether client is uploading file
+        // client downloading file
+        auto down_fd = download_fds.find(cli_fd);
+        if (down_fd != download_fds.end()) {
+          std::string file_name(down_fd->second.file_name);
+          std::string abs_file_name(user_name + "/" + file_name);
+          int file_size = down_fd->second.file_size;
+          int already_read = down_fd->second.already_read;
+          int left = file_size - already_read;
+          int read_size = (left > CONTENT_SIZE) ? CONTENT_SIZE : left;
+
+          FILE *fp = fopen(abs_file_name.c_str(), "r");
+          fseek(fp, already_read, SEEK_SET);
+          char content[read_size];
+          int n = read(fileno(fp), content, read_size);
+          if (n < 0)
+            continue;
+          write(cli_fd, content, n);
+          printf("already sync %d bytes\n", already_read + n);
+          fclose(fp);
+
+          if (already_read + n == file_size) {
+            download_fds.erase(cli_fd);
+            auto fd_file = fd_files.find(cli_fd);
+            fd_file->second.insert(file_name);
+          } else {
+            down_fd->second.already_read += n;
+            continue;
+          }
+        }
+
+        // sync client files
+        auto user_file = user_files.find(user_name);
+        auto fd_file = fd_files.find(cli_fd);
+        for (auto file_name : user_file->second) {
+          if (fd_file->second.count(file_name) == 0) {
+            printf("file: %s need sync!\n", file_name.c_str());
+            // get file size
+            std::ifstream infile;
+            infile.open(user_name + "/" + file_name, std::ios_base::binary);
+            const auto begin = infile.tellg();
+            infile.seekg(0, std::ios_base::end);
+            const auto end = infile.tellg();
+            infile.seekg(0, std::ios_base::beg);
+            int file_size = end - begin;
+
+            // send control message
+            struct segment_t segment;
+            strcpy(segment.action, "sync");
+            sprintf(segment.file_name, "%s", file_name.c_str());
+            sprintf(segment.file_size, "%d", file_size);
+            int n = write(cli_fd, &segment, sizeof(segment));
+            // printf("send segment %d bytes\n", n);
+
+            struct proc_file_t proc_file;
+            proc_file.file_name = file_name;
+            proc_file.file_size = file_size;
+            proc_file.already_read = 0;
+
+            download_fds.insert(
+                std::pair<int, struct proc_file_t>(cli_fd, proc_file));
+
+            continue;
+          }
+        }
+
+        // client uploading file
         auto up_fd = upload_fds.find(cli_fd);
         if (up_fd != upload_fds.end()) {
-          std::string file_name = up_fd->second.file_name;
+          std::string file_name(up_fd->second.file_name);
+          std::string abs_file_name(user_name + "/" + file_name);
           int file_size = up_fd->second.file_size;
           int already_read = up_fd->second.already_read;
           int left = file_size - already_read;
           int read_size = (left > CONTENT_SIZE) ? CONTENT_SIZE : left;
 
-          FILE *fp = fopen(file_name.c_str(), "a+t");
+          FILE *fp = fopen(abs_file_name.c_str(), "a+t");
           char content[read_size];
           int n = read(cli_fd, content, read_size);
           if (n < 0)
@@ -153,7 +190,7 @@ int main(int argc, char **argv) {
             auto fd_file = fd_files.find(cli_fd);
             fd_file->second.insert(file_name);
             auto user_file = user_files.find(user_name);
-            fd_file->second.insert(file_name);
+            user_file->second.insert(file_name);
           } else {
             up_fd->second.already_read += n;
             continue;
@@ -172,19 +209,19 @@ int main(int argc, char **argv) {
           } else if (strcmp(segment.action, "put") == 0) {
             printf("wanna get file: %s\n", segment.file_name);
 
-            // get file exact path
+            // get file absolute path
             std::string file_name(segment.file_name);
-            std::string exact_file_name(user_name + "/" + file_name);
-            printf("wanna open file: %s\n", exact_file_name.c_str());
+            std::string abs_file_name(user_name + "/" + file_name);
+            printf("wanna open file: %s\n", abs_file_name.c_str());
 
             int file_size = atoi(segment.file_size);
 
             // open new file
-            FILE *fp = fopen(exact_file_name.c_str(), "w+t");
+            FILE *fp = fopen(abs_file_name.c_str(), "w+t");
             fclose(fp);
 
             struct proc_file_t proc_file;
-            proc_file.file_name = exact_file_name;
+            proc_file.file_name = file_name;
             proc_file.file_size = file_size;
             proc_file.already_read = 0;
 
@@ -192,11 +229,9 @@ int main(int argc, char **argv) {
                 std::pair<int, struct proc_file_t>(cli_fd, proc_file));
           }
         }
-
-        // check whether client is downloading file
-        // auto down_fd = download_fds.find(cli_fd);
       }
     }
+    continue;
   }
 
   return 0;

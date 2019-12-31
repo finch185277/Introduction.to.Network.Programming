@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
       int read_size = (left > CONTENT_SIZE) ? CONTENT_SIZE : left;
 
       char content[read_size];
-      n = read(sock_fd, content, read_size);
+      int n = read(sock_fd, content, read_size);
       if (n < 0)
         continue;
       if (n == 0) {
@@ -127,26 +127,29 @@ int main(int argc, char **argv) {
       }
 
       continue;
-    } else {
-      struct segment_t segment;
-      n = read(sock_fd, &segment, sizeof(segment));
-      if (n == sizeof(segment)) {
-        if (strcmp(segment.action, "put") == 0) {
-          std::string file_name(segment.file_name);
-          int file_size = atoi(segment.file_size);
+    }
 
-          // record download stat
-          struct proc_file_t proc_file;
-          proc_file.file_name = file_name;
-          proc_file.file_size = file_size;
-          proc_file.already_read = 0;
-          download_stat.first = true;
-          download_stat.second = proc_file;
-        }
-      } else if (n == 0) {
-        close(sock_fd);
-        break;
+    // check sync
+    struct segment_t segment;
+    n = read(sock_fd, &segment, sizeof(segment));
+    if (n == sizeof(segment)) {
+      if (strcmp(segment.action, "sync") == 0) {
+        printf("sync...\n");
+        std::string file_name(segment.file_name);
+        int file_size = atoi(segment.file_size);
+
+        // record download stat
+        struct proc_file_t proc_file;
+        proc_file.file_name = file_name;
+        proc_file.file_size = file_size;
+        proc_file.already_read = 0;
+        download_stat.first = true;
+        download_stat.second = proc_file;
+        continue;
       }
+    } else if (n == 0) {
+      close(sock_fd);
+      break;
     }
 
     // upload file
@@ -173,6 +176,7 @@ int main(int argc, char **argv) {
         upload_stat.second.already_read += n;
       }
     }
+    continue;
   }
 
   return 0;
