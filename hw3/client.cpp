@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
         close(sock_fd);
         break;
       }
-      FILE *fp = fopen(file_name.c_str(), "w+t");
+      FILE *fp = fopen(file_name.c_str(), "a+t");
       write(fileno(fp), content, n);
       fclose(fp);
 
@@ -137,6 +137,10 @@ int main(int argc, char **argv) {
         printf("sync...\n");
         std::string file_name(segment.file_name);
         int file_size = atoi(segment.file_size);
+
+        // open new file
+        FILE *fp = fopen(file_name.c_str(), "w+t");
+        fclose(fp);
 
         // record download stat
         struct proc_file_t proc_file;
