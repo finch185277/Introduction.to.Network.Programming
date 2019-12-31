@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
           if (n < 0)
             continue;
           write(cli_fd, content, n);
-          printf("already sync %d bytes\n", already_read + n);
+          // printf("already sync %d bytes\n", already_read + n);
           fclose(fp);
 
           if (already_read + n == file_size) {
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
         auto fd_file = fd_files.find(cli_fd);
         for (auto file_name : user_file->second) {
           if (fd_file->second.count(file_name) == 0) {
-            printf("file: %s need sync!\n", file_name.c_str());
+            // printf("file: %s need sync!\n", file_name.c_str());
             // get file size
             std::ifstream infile;
             infile.open(user_name + "/" + file_name, std::ios_base::binary);
@@ -182,7 +182,7 @@ int main(int argc, char **argv) {
           if (n < 0)
             continue;
           write(fileno(fp), content, n);
-          printf("write content %d bytes\n", n);
+          // printf("write content %d bytes\n", n);
           fclose(fp);
 
           if (already_read + n == file_size) {
@@ -207,12 +207,12 @@ int main(int argc, char **argv) {
             fd_files.erase(cli_fd);
             upload_fds.erase(cli_fd);
           } else if (strcmp(segment.action, "put") == 0) {
-            printf("wanna get file: %s\n", segment.file_name);
+            // printf("wanna get file: %s\n", segment.file_name);
 
             // get file absolute path
             std::string file_name(segment.file_name);
             std::string abs_file_name(user_name + "/" + file_name);
-            printf("wanna open file: %s\n", abs_file_name.c_str());
+            // printf("wanna open file: %s\n", abs_file_name.c_str());
 
             int file_size = atoi(segment.file_size);
 

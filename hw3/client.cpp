@@ -9,6 +9,7 @@
 
 #define LINE_MAX 1050
 #define CONTENT_SIZE 1000
+#define PROC_BAR_LEN 20
 #include <fstream>
 #include <string>
 
@@ -23,6 +24,18 @@ struct proc_file_t {
   int file_size;
   int already_read;
 };
+
+std::string cal_proc_bar(int file_size, int nread) {
+  std::string proc_bar;
+  int proc_num = PROC_BAR_LEN * nread / file_size;
+  for (int i = 0; i < PROC_BAR_LEN; i++) {
+    if (i < proc_num)
+      proc_bar += "#";
+    else
+      proc_bar += " ";
+  }
+  return proc_bar;
+}
 
 int main(int argc, char **argv) {
   if (argc != 4) {
@@ -54,6 +67,8 @@ int main(int argc, char **argv) {
 
   std::pair<bool, struct proc_file_t> upload_stat;
   std::pair<bool, struct proc_file_t> download_stat;
+
+  int pid = getpid();
 
   for (;;) {
     // read from stdin
@@ -88,7 +103,7 @@ int main(int argc, char **argv) {
         sprintf(segment.file_name, "%s", file_name);
         sprintf(segment.file_size, "%d", file_size);
         int n = write(sock_fd, &segment, sizeof(segment));
-        printf("send segment %d bytes\n", n);
+        // printf("send segment %d bytes\n", n);
 
         // record upload stat
         struct proc_file_t proc_file;
@@ -97,6 +112,17 @@ int main(int argc, char **argv) {
         proc_file.already_read = 0;
         upload_stat.first = true;
         upload_stat.second = proc_file;
+
+        printf("Pid: %d [Upload] %s Start!\n", pid, file_name);
+
+      } else if (strcmp(tok, "sleep") == 0) {
+        tok = strtok(NULL, " \n");
+        int sec = atoi(tok);
+        printf("Pid: %d The client starts to sleep.\n", pid);
+        for (int i = 0; i < sec; i++) {
+          printf("Pid: %d Sleep %d\n", pid, i);
+          sleep(1);
+        }
       }
     }
 
@@ -122,7 +148,11 @@ int main(int argc, char **argv) {
 
       if (already_read + n == file_size) {
         download_stat.first = false;
+        printf("Pid: %d Progress : [######################]\n", pid);
+        printf("Pid: %d [Download] %s Finish!\n", pid, file_name.c_str());
       } else {
+        std::string proc_bar = cal_proc_bar(file_size, already_read + n);
+        printf("Pid: %d Progress : [%s]\r", pid, proc_bar.c_str());
         download_stat.second.already_read += n;
       }
 
@@ -134,7 +164,6 @@ int main(int argc, char **argv) {
     n = read(sock_fd, &segment, sizeof(segment));
     if (n == sizeof(segment)) {
       if (strcmp(segment.action, "sync") == 0) {
-        printf("sync...\n");
         std::string file_name(segment.file_name);
         int file_size = atoi(segment.file_size);
 
@@ -149,6 +178,9 @@ int main(int argc, char **argv) {
         proc_file.already_read = 0;
         download_stat.first = true;
         download_stat.second = proc_file;
+
+        printf("Pid: %d [Download] %s Start!\n", pid, file_name.c_str());
+
         continue;
       }
     } else if (n == 0) {
@@ -171,12 +203,16 @@ int main(int argc, char **argv) {
       if (n < 0)
         continue;
       write(sock_fd, content, n);
-      printf("already write content %d bytes\n", already_read + n);
+      // printf("already write content %d bytes\n", already_read + n);
       fclose(fp);
 
       if (already_read + n == file_size) {
         upload_stat.first = false;
+        printf("Pid: %d Progress : [######################]\n", pid);
+        printf("Pid: %d [Upload] %s Finish!\n", pid, file_name.c_str());
       } else {
+        std::string proc_bar = cal_proc_bar(file_size, already_read + n);
+        printf("Pid: %d Progress : [%s]\r", pid, proc_bar.c_str());
         upload_stat.second.already_read += n;
       }
     }
