@@ -1,20 +1,21 @@
-TEST_OUTPUT = tom frank
+TEST_OUTPUT = 1 2 3 4 tom frank
+EXEC_FILES = test server client
 
 all: test-script server client
 
-test-script: test.c
+test-script:
 	gcc test.c -o test
 
-server: server.cpp
+server:
 	g++ server.cpp -o server
 
-client: client.cpp
+client:
 	g++ client.cpp -o client
 
 .PHONY: demo clean
 
 test: all
-	./test . 8888 1
+	./test . 8686 1
 
 clean:
-	rm -rf test server client $(TEST_OUTPUT)
+	rm -rf $(EXEC_FILES) $(TEST_OUTPUT)
