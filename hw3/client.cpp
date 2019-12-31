@@ -16,49 +16,13 @@ struct segment_t {
   char action[10];
   char file_name[20];
   char file_size[20];
-  char content[CONTENT_SIZE];
 };
 
-void send_file(int fd, std::string file_name) {
-  std::ifstream infile;
-  infile.open(file_name, std::ios_base::binary);
-
-  const auto begin = infile.tellg();
-  infile.seekg(0, std::ios_base::end);
-  const auto end = infile.tellg();
-  infile.seekg(0, std::ios_base::beg);
-  int file_size = end - begin;
-
-  struct segment_t segment;
-  strcpy(segment.action, "put");
-  sprintf(segment.file_name, "%s", file_name.c_str());
-  sprintf(segment.file_size, "%d", file_size);
-  int n = write(fd, &segment, sizeof(segment));
-  printf("send segment %d bytes\n", n);
-
-  int loops, last_size;
-  if (file_size % CONTENT_SIZE == 0) {
-    loops = file_size / CONTENT_SIZE;
-    last_size = CONTENT_SIZE;
-  } else {
-    loops = (file_size / CONTENT_SIZE) + 1;
-    last_size = file_size % CONTENT_SIZE;
-  }
-
-  for (int i = 1; i <= loops; i++) {
-    int size;
-    if (i == loops)
-      size = last_size;
-    else
-      size = CONTENT_SIZE;
-    char content[size];
-    infile.read(content, size);
-    n = write(fd, content, size);
-    printf("send content %d bytes <-- %d\n", n, i);
-  }
-
-  return;
-}
+struct proc_file_t {
+  std::string file_name;
+  int file_size;
+  int already_read;
+};
 
 int main(int argc, char **argv) {
   if (argc != 4) {
@@ -88,7 +52,11 @@ int main(int argc, char **argv) {
   connect(sock_fd, (struct sockaddr *)&srv_addr, sizeof(srv_addr));
   write(sock_fd, argv[3], sizeof(argv[3]));
 
+  std::pair<bool, struct proc_file_t> upload_stat;
+  std::pair<bool, struct proc_file_t> download_stat;
+
   for (;;) {
+    // read from stdin
     char buf[LINE_MAX];
     int n = read(STDIN_FILENO, buf, LINE_MAX - 1);
     if (n > 0) {
@@ -104,28 +72,106 @@ int main(int argc, char **argv) {
         char file_name[LINE_MAX];
         tok = strtok(NULL, " \n");
         strcpy(file_name, tok);
-        std::string file(file_name);
 
-        send_file(sock_fd, file);
+        // get file size
+        std::ifstream infile;
+        infile.open(file_name, std::ios_base::binary);
+        const auto begin = infile.tellg();
+        infile.seekg(0, std::ios_base::end);
+        const auto end = infile.tellg();
+        infile.seekg(0, std::ios_base::beg);
+        int file_size = end - begin;
+
+        // send control message
+        struct segment_t segment;
+        strcpy(segment.action, "put");
+        sprintf(segment.file_name, "%s", file_name);
+        sprintf(segment.file_size, "%d", file_size);
+        int n = write(sock_fd, &segment, sizeof(segment));
+        printf("send segment %d bytes\n", n);
+
+        // record upload stat
+        struct proc_file_t proc_file;
+        proc_file.file_name = std::string(file_name);
+        proc_file.file_size = file_size;
+        proc_file.already_read = 0;
+        upload_stat.first = true;
+        upload_stat.second = proc_file;
       }
     }
 
-    struct segment_t segment;
-    n = read(sock_fd, &segment, sizeof(segment));
-    if (n > 0) {
-      if (strcmp(segment.action, "put") == 0) {
-        FILE *fp = fopen(segment.file_name, "w+t");
+    // download file
+    if (download_stat.first) {
+      std::string file_name = download_stat.second.file_name;
+      int file_size = download_stat.second.file_size;
+      int already_read = download_stat.second.already_read;
+      int left = file_size - already_read;
+      int read_size = (left > CONTENT_SIZE) ? CONTENT_SIZE : left;
 
-        char *content = new char[atoi(segment.file_size)];
-        n = read(sock_fd, content, atoi(segment.file_size));
-        write(fileno(fp), content, atoi(segment.file_size));
-        delete content;
-
-        fclose(fp);
+      char content[read_size];
+      n = read(sock_fd, content, read_size);
+      if (n < 0)
+        continue;
+      if (n == 0) {
+        close(sock_fd);
+        break;
       }
-    } else if (n == 0) {
-      close(sock_fd);
-      break;
+      FILE *fp = fopen(file_name.c_str(), "w+t");
+      write(fileno(fp), content, n);
+      fclose(fp);
+
+      if (already_read + n == file_size) {
+        download_stat.first = false;
+      } else {
+        download_stat.second.already_read += n;
+      }
+
+      continue;
+    } else {
+      struct segment_t segment;
+      n = read(sock_fd, &segment, sizeof(segment));
+      if (n == sizeof(segment)) {
+        if (strcmp(segment.action, "put") == 0) {
+          std::string file_name(segment.file_name);
+          int file_size = atoi(segment.file_size);
+
+          // record download stat
+          struct proc_file_t proc_file;
+          proc_file.file_name = file_name;
+          proc_file.file_size = file_size;
+          proc_file.already_read = 0;
+          download_stat.first = true;
+          download_stat.second = proc_file;
+        }
+      } else if (n == 0) {
+        close(sock_fd);
+        break;
+      }
+    }
+
+    // upload file
+    if (upload_stat.first) {
+      std::string file_name = upload_stat.second.file_name;
+      int file_size = upload_stat.second.file_size;
+      int already_read = upload_stat.second.already_read;
+      int left = file_size - already_read;
+      int read_size = (left > CONTENT_SIZE) ? CONTENT_SIZE : left;
+
+      FILE *fp = fopen(file_name.c_str(), "r");
+      fseek(fp, already_read, SEEK_SET);
+      char content[read_size];
+      int n = read(fileno(fp), content, read_size);
+      if (n < 0)
+        continue;
+      write(sock_fd, content, n);
+      printf("already write content %d bytes\n", already_read + n);
+      fclose(fp);
+
+      if (already_read + n == file_size) {
+        upload_stat.first = false;
+      } else {
+        upload_stat.second.already_read += n;
+      }
     }
   }
 

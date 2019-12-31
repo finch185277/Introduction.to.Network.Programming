@@ -19,7 +19,6 @@ struct segment_t {
   char action[10];
   char file_name[20];
   char file_size[20];
-  char content[1000];
 };
 
 struct proc_file_t {
@@ -81,7 +80,9 @@ int main(int argc, char **argv) {
   // key: fd; value: files
   std::unordered_map<int, std::unordered_set<std::string>> fd_files;
   // key: fd; value: file name
-  std::unordered_map<int, struct proc_file_t> proc_fds;
+  std::unordered_map<int, struct proc_file_t> upload_fds;
+  // key: fd; value: file name
+  std::unordered_map<int, struct proc_file_t> download_fds;
 
   for (;;) {
     struct sockaddr_in cli_addr;
@@ -129,11 +130,12 @@ int main(int argc, char **argv) {
     for (auto user : user_lists) {
       std::string user_name(user.first);
       for (auto cli_fd : user.second) {
-        auto fd = proc_fds.find(cli_fd);
-        if (fd != proc_fds.end()) {
-          std::string file_name = fd->second.file_name;
-          int file_size = fd->second.file_size;
-          int already_read = fd->second.already_read;
+        // check whether client is uploading file
+        auto up_fd = upload_fds.find(cli_fd);
+        if (up_fd != upload_fds.end()) {
+          std::string file_name = up_fd->second.file_name;
+          int file_size = up_fd->second.file_size;
+          int already_read = up_fd->second.already_read;
           int left = file_size - already_read;
           int read_size = (left > CONTENT_SIZE) ? CONTENT_SIZE : left;
 
@@ -147,17 +149,18 @@ int main(int argc, char **argv) {
           fclose(fp);
 
           if (already_read + n == file_size) {
-            proc_fds.erase(cli_fd);
+            upload_fds.erase(cli_fd);
             auto fd_file = fd_files.find(cli_fd);
             fd_file->second.insert(file_name);
             auto user_file = user_files.find(user_name);
             fd_file->second.insert(file_name);
           } else {
-            fd->second.already_read += n;
+            up_fd->second.already_read += n;
             continue;
           }
         }
 
+        // receive control message
         struct segment_t segment;
         int n = read(cli_fd, &segment, sizeof(segment));
         if (n == sizeof(segment)) {
@@ -165,7 +168,7 @@ int main(int argc, char **argv) {
             close(cli_fd);
             user.second.erase(cli_fd);
             fd_files.erase(cli_fd);
-            proc_fds.erase(cli_fd);
+            upload_fds.erase(cli_fd);
           } else if (strcmp(segment.action, "put") == 0) {
             printf("wanna get file: %s\n", segment.file_name);
 
@@ -176,15 +179,22 @@ int main(int argc, char **argv) {
 
             int file_size = atoi(segment.file_size);
 
+            // open new file
+            FILE *fp = fopen(exact_file_name.c_str(), "w+t");
+            fclose(fp);
+
             struct proc_file_t proc_file;
             proc_file.file_name = exact_file_name;
             proc_file.file_size = file_size;
             proc_file.already_read = 0;
 
-            proc_fds.insert(
+            upload_fds.insert(
                 std::pair<int, struct proc_file_t>(cli_fd, proc_file));
           }
         }
+
+        // check whether client is downloading file
+        // auto down_fd = download_fds.find(cli_fd);
       }
     }
   }
