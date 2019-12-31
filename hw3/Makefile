@@ -1,3 +1,5 @@
+TEST_OUTPUT = tom frank
+
 all: test-script server client
 
 test-script: test.c
@@ -15,4 +17,4 @@ test: all
 	./test . 8888 1
 
 clean:
-	rm -rf test server client
+	rm -rf test server client $(TEST_OUTPUT)
