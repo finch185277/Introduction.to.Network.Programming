@@ -8,8 +8,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define LINE_MAX 1050
-#define CONTENT_SIZE 1000
+#define CONTENT_SIZE 10000
 #include <fstream>
 #include <string>
 #include <unordered_map>

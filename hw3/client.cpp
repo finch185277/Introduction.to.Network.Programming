@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 #define LINE_MAX 1050
-#define CONTENT_SIZE 1000
+#define CONTENT_SIZE 10000
 #define PROC_BAR_LEN 20
 #include <fstream>
 #include <string>
