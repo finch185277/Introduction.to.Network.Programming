@@ -15,6 +15,10 @@
 #include <unordered_map>
 #include <unordered_set>
 
+struct auth_msg_t {
+  char user_name[20];
+};
+
 struct segment_t {
   char action[10];
   char file_name[20];
@@ -66,14 +70,13 @@ int main(int argc, char **argv) {
     int cli_fd = accept(listen_fd, (struct sockaddr *)&cli_addr, &cli_len);
 
     if (cli_fd > 0) {
-      char buf[LINE_MAX];
-      int n = read(cli_fd, buf, LINE_MAX - 1);
-      buf[n] = '\0';
+      struct auth_msg_t auth_msg;
+      int n = read(cli_fd, &auth_msg, sizeof(auth_msg));
 
       flag = fcntl(cli_fd, F_GETFL, 0);
       fcntl(cli_fd, F_SETFL, flag | O_NONBLOCK);
 
-      std::string user_name(buf);
+      std::string user_name(auth_msg.user_name);
       auto user = user_lists.find(user_name);
 
       if (user == user_lists.end()) {
@@ -115,9 +118,17 @@ int main(int argc, char **argv) {
           fseek(fp, already_read, SEEK_SET);
           char content[read_size];
           int n = read(fileno(fp), content, read_size);
-          if (n < 0)
+          int m = write(cli_fd, content, n);
+          if (m < 0)
             continue;
-          write(cli_fd, content, n);
+          if (m == 0) {
+            close(cli_fd);
+            user_lists.find(user_name)->second.erase(cli_fd);
+            fd_files.erase(cli_fd);
+            upload_fds.erase(cli_fd);
+            download_fds.erase(cli_fd);
+            continue;
+          }
           fclose(fp);
 
           if (already_read + n == file_size) {
@@ -146,10 +157,20 @@ int main(int argc, char **argv) {
 
             // send control message
             struct segment_t segment;
-            strcpy(segment.action, "sync");
+            strcpy(segment.action, "download");
             sprintf(segment.file_name, "%s", file_name.c_str());
             sprintf(segment.file_size, "%d", file_size);
-            int n = write(cli_fd, &segment, sizeof(segment));
+            int m = write(cli_fd, &segment, sizeof(segment));
+            if (m < 0)
+              continue;
+            if (m == 0) {
+              close(cli_fd);
+              user_lists.find(user_name)->second.erase(cli_fd);
+              fd_files.erase(cli_fd);
+              upload_fds.erase(cli_fd);
+              download_fds.erase(cli_fd);
+              continue;
+            }
 
             struct proc_file_t proc_file;
             proc_file.file_name = file_name;
@@ -178,15 +199,21 @@ int main(int argc, char **argv) {
           int n = read(cli_fd, content, read_size);
           if (n < 0)
             continue;
+          if (n == 0) {
+            close(cli_fd);
+            user_lists.find(user_name)->second.erase(cli_fd);
+            fd_files.erase(cli_fd);
+            upload_fds.erase(cli_fd);
+            download_fds.erase(cli_fd);
+            continue;
+          }
           write(fileno(fp), content, n);
           fclose(fp);
 
           if (already_read + n == file_size) {
             upload_fds.erase(cli_fd);
-            auto fd_file = fd_files.find(cli_fd);
-            fd_file->second.insert(file_name);
-            auto user_file = user_files.find(user_name);
-            user_file->second.insert(file_name);
+            fd_files.find(cli_fd)->second.insert(file_name);
+            user_files.find(user_name)->second.insert(file_name);
           } else {
             up_fd->second.already_read += n;
             continue;
@@ -197,12 +224,7 @@ int main(int argc, char **argv) {
         struct segment_t segment;
         int n = read(cli_fd, &segment, sizeof(segment));
         if (n == sizeof(segment)) {
-          if (strcmp(segment.action, "exit") == 0) {
-            close(cli_fd);
-            user.second.erase(cli_fd);
-            fd_files.erase(cli_fd);
-            upload_fds.erase(cli_fd);
-          } else if (strcmp(segment.action, "put") == 0) {
+          if (strcmp(segment.action, "upload") == 0) {
             // get file info
             std::string file_name(segment.file_name);
             std::string abs_file_name(user_name + "/" + file_name);
@@ -220,6 +242,17 @@ int main(int argc, char **argv) {
             upload_fds.insert(
                 std::pair<int, struct proc_file_t>(cli_fd, proc_file));
           }
+        }
+        if (n < 0) {
+          continue;
+        }
+        if (n == 0) {
+          close(cli_fd);
+          user_lists.find(user_name)->second.erase(cli_fd);
+          fd_files.erase(cli_fd);
+          upload_fds.erase(cli_fd);
+          download_fds.erase(cli_fd);
+          continue;
         }
       }
     }

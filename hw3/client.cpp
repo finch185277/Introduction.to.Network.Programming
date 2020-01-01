@@ -13,6 +13,10 @@
 #include <fstream>
 #include <string>
 
+struct auth_msg_t {
+  char user_name[20];
+};
+
 struct segment_t {
   char action[10];
   char file_name[20];
@@ -63,7 +67,11 @@ int main(int argc, char **argv) {
   fcntl(STDIN_FILENO, F_SETFL, flag | O_NONBLOCK);
 
   connect(sock_fd, (struct sockaddr *)&srv_addr, sizeof(srv_addr));
-  write(sock_fd, argv[3], sizeof(argv[3]));
+
+  // send auth message
+  struct auth_msg_t auth_msg;
+  strcpy(auth_msg.user_name, argv[3]);
+  write(sock_fd, &auth_msg, sizeof(auth_msg));
 
   std::pair<bool, struct proc_file_t> upload_stat;
   std::pair<bool, struct proc_file_t> download_stat;
@@ -73,11 +81,10 @@ int main(int argc, char **argv) {
   for (;;) {
     // read from stdin
     char buf[LINE_MAX];
-    int n = read(STDIN_FILENO, buf, LINE_MAX - 1);
-    if (n > 0) {
-      buf[n] = '\0';
+    int nread = read(STDIN_FILENO, buf, LINE_MAX - 1);
+    if (nread > 0) {
+      buf[nread] = '\0';
       if (strcmp(buf, "exit\n") == 0) {
-        write(sock_fd, buf, n);
         close(sock_fd);
         break;
       }
@@ -99,10 +106,10 @@ int main(int argc, char **argv) {
 
         // send control message
         struct segment_t segment;
-        strcpy(segment.action, "put");
+        strcpy(segment.action, "upload");
         sprintf(segment.file_name, "%s", file_name);
         sprintf(segment.file_size, "%d", file_size);
-        int n = write(sock_fd, &segment, sizeof(segment));
+        write(sock_fd, &segment, sizeof(segment));
 
         // record upload stat
         struct proc_file_t proc_file;
@@ -118,7 +125,7 @@ int main(int argc, char **argv) {
         tok = strtok(NULL, " \n");
         int sec = atoi(tok);
         printf("Pid: %d The client starts to sleep.\n", pid);
-        for (int i = 0; i < sec; i++) {
+        for (int i = 1; i <= sec; i++) {
           printf("Pid: %d Sleep %d\n", pid, i);
           sleep(1);
         }
@@ -160,9 +167,9 @@ int main(int argc, char **argv) {
 
     // check sync
     struct segment_t segment;
-    n = read(sock_fd, &segment, sizeof(segment));
-    if (n == sizeof(segment)) {
-      if (strcmp(segment.action, "sync") == 0) {
+    nread = read(sock_fd, &segment, sizeof(segment));
+    if (nread == sizeof(segment)) {
+      if (strcmp(segment.action, "download") == 0) {
         std::string file_name(segment.file_name);
         int file_size = atoi(segment.file_size);
 
@@ -182,7 +189,7 @@ int main(int argc, char **argv) {
 
         continue;
       }
-    } else if (n == 0) {
+    } else if (nread == 0) {
       close(sock_fd);
       break;
     }
@@ -199,8 +206,6 @@ int main(int argc, char **argv) {
       fseek(fp, already_read, SEEK_SET);
       char content[read_size];
       int n = read(fileno(fp), content, read_size);
-      if (n < 0)
-        continue;
       write(sock_fd, content, n);
       fclose(fp);
 
