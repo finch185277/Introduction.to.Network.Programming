@@ -17,6 +17,10 @@ struct auth_msg_t {
   char user_name[20];
 };
 
+struct echo_msg_t {
+  char recv_size[20];
+};
+
 struct segment_t {
   char action[10];
   char file_name[20];
@@ -27,6 +31,7 @@ struct proc_file_t {
   std::string file_name;
   int file_size;
   int already_read;
+  int extension;
 };
 
 std::string cal_proc_bar(int file_size, int nread) {
@@ -60,11 +65,11 @@ int main(int argc, char **argv) {
   int sock_fd;
   sock_fd = socket(AF_INET, SOCK_STREAM, 0);
 
-  int flag = fcntl(sock_fd, F_GETFL, 0);
-  fcntl(sock_fd, F_SETFL, flag | O_NONBLOCK);
-
-  flag = fcntl(STDIN_FILENO, F_GETFL, 0);
-  fcntl(STDIN_FILENO, F_SETFL, flag | O_NONBLOCK);
+  // int flag = fcntl(sock_fd, F_GETFL, 0);
+  // fcntl(sock_fd, F_SETFL, flag | O_NONBLOCK);
+  //
+  // flag = fcntl(STDIN_FILENO, F_GETFL, 0);
+  // fcntl(STDIN_FILENO, F_SETFL, flag | O_NONBLOCK);
 
   connect(sock_fd, (struct sockaddr *)&srv_addr, sizeof(srv_addr));
 
@@ -116,6 +121,7 @@ int main(int argc, char **argv) {
         proc_file.file_name = std::string(file_name);
         proc_file.file_size = file_size;
         proc_file.already_read = 0;
+        proc_file.extension = 0;
         upload_stat.first = true;
         upload_stat.second = proc_file;
 
@@ -202,21 +208,30 @@ int main(int argc, char **argv) {
       int left = file_size - already_read;
       int read_size = (left > CONTENT_SIZE) ? CONTENT_SIZE : left;
 
-      FILE *fp = fopen(file_name.c_str(), "r");
-      fseek(fp, already_read, SEEK_SET);
-      char content[read_size];
-      int n = read(fileno(fp), content, read_size);
-      write(sock_fd, content, n);
-      fclose(fp);
+      if (already_read < file_size) {
+        FILE *fp = fopen(file_name.c_str(), "r");
+        fseek(fp, already_read, SEEK_SET);
+        char content[read_size];
+        int n = read(fileno(fp), content, read_size);
+        write(sock_fd, content, n);
+        // printf("send %d bytes\n", n);
+        fclose(fp);
+        upload_stat.second.already_read += n;
+      }
 
-      if (already_read + n == file_size) {
+      // read echo message
+      struct echo_msg_t echo_msg;
+      int m = read(sock_fd, &echo_msg, sizeof(echo_msg));
+      int already_proc = atoi(echo_msg.recv_size);
+
+      if (already_proc == file_size) {
         upload_stat.first = false;
         printf("Pid: %d Progress : [######################]\n", pid);
         printf("Pid: %d [Upload] %s Finish!\n", pid, file_name.c_str());
       } else {
-        std::string proc_bar = cal_proc_bar(file_size, already_read + n);
+        std::string proc_bar = cal_proc_bar(file_size, already_proc);
         printf("Pid: %d Progress : [%s]\r", pid, proc_bar.c_str());
-        upload_stat.second.already_read += n;
+        upload_stat.second.extension = already_proc;
       }
     }
     continue;
