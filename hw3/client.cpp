@@ -8,9 +8,8 @@
 #include <unistd.h>
 
 #define LINE_MAX 1050
-#define CONTENT_SIZE 10000
+#define CONTENT_SIZE 100000
 #define PROC_BAR_LEN 20
-#include <fstream>
 #include <string>
 
 struct auth_msg_t {
@@ -27,6 +26,7 @@ struct proc_file_t {
   std::string file_name;
   int file_size;
   int already_read;
+  FILE *fp;
 };
 
 std::string cal_proc_bar(int file_size, int nread) {
@@ -60,12 +60,6 @@ int main(int argc, char **argv) {
   int sock_fd;
   sock_fd = socket(AF_INET, SOCK_STREAM, 0);
 
-  int flag = fcntl(sock_fd, F_GETFL, 0);
-  fcntl(sock_fd, F_SETFL, flag | O_NONBLOCK);
-
-  flag = fcntl(STDIN_FILENO, F_GETFL, 0);
-  fcntl(STDIN_FILENO, F_SETFL, flag | O_NONBLOCK);
-
   connect(sock_fd, (struct sockaddr *)&srv_addr, sizeof(srv_addr));
 
   // send auth message
@@ -73,8 +67,16 @@ int main(int argc, char **argv) {
   strcpy(auth_msg.user_name, argv[3]);
   write(sock_fd, &auth_msg, sizeof(auth_msg));
 
+  int flag = fcntl(sock_fd, F_GETFL, 0);
+  fcntl(sock_fd, F_SETFL, flag | O_NONBLOCK);
+
+  flag = fcntl(STDIN_FILENO, F_GETFL, 0);
+  fcntl(STDIN_FILENO, F_SETFL, flag | O_NONBLOCK);
+
   std::pair<bool, struct proc_file_t> upload_stat;
   std::pair<bool, struct proc_file_t> download_stat;
+  upload_stat.first = false;
+  download_stat.first = false;
 
   int pid = getpid();
 
@@ -96,13 +98,10 @@ int main(int argc, char **argv) {
         strcpy(file_name, tok);
 
         // get file size
-        std::ifstream infile;
-        infile.open(file_name, std::ios_base::binary);
-        const auto begin = infile.tellg();
-        infile.seekg(0, std::ios_base::end);
-        const auto end = infile.tellg();
-        infile.seekg(0, std::ios_base::beg);
-        int file_size = end - begin;
+        FILE *fp = fopen(file_name, "r");
+        fseek(fp, 0L, SEEK_END);
+        int file_size = ftell(fp);
+        fclose(fp);
 
         // send control message
         struct segment_t segment;
@@ -116,6 +115,8 @@ int main(int argc, char **argv) {
         proc_file.file_name = std::string(file_name);
         proc_file.file_size = file_size;
         proc_file.already_read = 0;
+        proc_file.fp = fopen(file_name, "r");
+
         upload_stat.first = true;
         upload_stat.second = proc_file;
 
@@ -137,6 +138,8 @@ int main(int argc, char **argv) {
       std::string file_name = download_stat.second.file_name;
       int file_size = download_stat.second.file_size;
       int already_read = download_stat.second.already_read;
+      FILE *fp = download_stat.second.fp;
+
       int left = file_size - already_read;
       int read_size = (left > CONTENT_SIZE) ? CONTENT_SIZE : left;
 
@@ -148,11 +151,10 @@ int main(int argc, char **argv) {
         close(sock_fd);
         break;
       }
-      FILE *fp = fopen(file_name.c_str(), "a+t");
       write(fileno(fp), content, n);
-      fclose(fp);
 
       if (already_read + n == file_size) {
+        fclose(fp);
         download_stat.first = false;
         printf("Pid: %d Progress : [######################]\n", pid);
         printf("Pid: %d [Download] %s Finish!\n", pid, file_name.c_str());
@@ -173,15 +175,13 @@ int main(int argc, char **argv) {
         std::string file_name(segment.file_name);
         int file_size = atoi(segment.file_size);
 
-        // open new file
-        FILE *fp = fopen(file_name.c_str(), "w+t");
-        fclose(fp);
-
         // record download stat
         struct proc_file_t proc_file;
         proc_file.file_name = file_name;
         proc_file.file_size = file_size;
         proc_file.already_read = 0;
+        proc_file.fp = fopen(file_name.c_str(), "w+t");
+
         download_stat.first = true;
         download_stat.second = proc_file;
 
@@ -199,17 +199,17 @@ int main(int argc, char **argv) {
       std::string file_name = upload_stat.second.file_name;
       int file_size = upload_stat.second.file_size;
       int already_read = upload_stat.second.already_read;
+      FILE *fp = upload_stat.second.fp;
+
       int left = file_size - already_read;
       int read_size = (left > CONTENT_SIZE) ? CONTENT_SIZE : left;
 
-      FILE *fp = fopen(file_name.c_str(), "r");
-      fseek(fp, already_read, SEEK_SET);
       char content[read_size];
       int n = read(fileno(fp), content, read_size);
       write(sock_fd, content, n);
-      fclose(fp);
 
       if (already_read + n == file_size) {
+        fclose(fp);
         upload_stat.first = false;
         printf("Pid: %d Progress : [######################]\n", pid);
         printf("Pid: %d [Upload] %s Finish!\n", pid, file_name.c_str());
@@ -219,7 +219,6 @@ int main(int argc, char **argv) {
         upload_stat.second.already_read += n;
       }
     }
-    continue;
   }
 
   return 0;

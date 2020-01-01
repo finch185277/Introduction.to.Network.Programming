@@ -8,8 +8,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define CONTENT_SIZE 10000
-#include <fstream>
+#define CONTENT_SIZE 100000
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -28,6 +27,7 @@ struct proc_file_t {
   std::string file_name;
   int file_size;
   int already_read;
+  FILE *fp;
 };
 
 int main(int argc, char **argv) {
@@ -110,11 +110,11 @@ int main(int argc, char **argv) {
           std::string abs_file_name(user_name + "/" + file_name);
           int file_size = down_fd->second.file_size;
           int already_read = down_fd->second.already_read;
+          FILE *fp = down_fd->second.fp;
+
           int left = file_size - already_read;
           int read_size = (left > CONTENT_SIZE) ? CONTENT_SIZE : left;
 
-          FILE *fp = fopen(abs_file_name.c_str(), "r");
-          fseek(fp, already_read, SEEK_SET);
           char content[read_size];
           int n = read(fileno(fp), content, read_size);
           int m = write(cli_fd, content, n);
@@ -128,9 +128,9 @@ int main(int argc, char **argv) {
             download_fds.erase(cli_fd);
             continue;
           }
-          fclose(fp);
 
           if (already_read + n == file_size) {
+            fclose(fp);
             download_fds.erase(cli_fd);
             auto fd_file = fd_files.find(cli_fd);
             fd_file->second.insert(file_name);
@@ -146,13 +146,11 @@ int main(int argc, char **argv) {
         for (auto file_name : user_file->second) {
           if (fd_file->second.count(file_name) == 0) {
             // get file size
-            std::ifstream infile;
-            infile.open(user_name + "/" + file_name, std::ios_base::binary);
-            const auto begin = infile.tellg();
-            infile.seekg(0, std::ios_base::end);
-            const auto end = infile.tellg();
-            infile.seekg(0, std::ios_base::beg);
-            int file_size = end - begin;
+            std::string abs_file_name(user_name + "/" + file_name);
+            FILE *fp = fopen(abs_file_name.c_str(), "r");
+            fseek(fp, 0L, SEEK_END);
+            int file_size = ftell(fp);
+            fclose(fp);
 
             // send control message
             struct segment_t segment;
@@ -175,6 +173,7 @@ int main(int argc, char **argv) {
             proc_file.file_name = file_name;
             proc_file.file_size = file_size;
             proc_file.already_read = 0;
+            proc_file.fp = fopen(abs_file_name.c_str(), "r");
 
             download_fds.insert(
                 std::pair<int, struct proc_file_t>(cli_fd, proc_file));
@@ -190,14 +189,16 @@ int main(int argc, char **argv) {
           std::string abs_file_name(user_name + "/" + file_name);
           int file_size = up_fd->second.file_size;
           int already_read = up_fd->second.already_read;
+          FILE *fp = up_fd->second.fp;
+
           int left = file_size - already_read;
           int read_size = (left > CONTENT_SIZE) ? CONTENT_SIZE : left;
 
-          FILE *fp = fopen(abs_file_name.c_str(), "a+t");
           char content[read_size];
           int n = read(cli_fd, content, read_size);
-          if (n < 0)
+          if (n < 0) {
             continue;
+          }
           if (n == 0) {
             close(cli_fd);
             user_lists.find(user_name)->second.erase(cli_fd);
@@ -207,9 +208,9 @@ int main(int argc, char **argv) {
             continue;
           }
           write(fileno(fp), content, n);
-          fclose(fp);
 
           if (already_read + n == file_size) {
+            fclose(fp);
             upload_fds.erase(cli_fd);
             fd_files.find(cli_fd)->second.insert(file_name);
             user_files.find(user_name)->second.insert(file_name);
@@ -229,14 +230,11 @@ int main(int argc, char **argv) {
             std::string abs_file_name(user_name + "/" + file_name);
             int file_size = atoi(segment.file_size);
 
-            // open new file
-            FILE *fp = fopen(abs_file_name.c_str(), "w+t");
-            fclose(fp);
-
             struct proc_file_t proc_file;
             proc_file.file_name = file_name;
             proc_file.file_size = file_size;
             proc_file.already_read = 0;
+            proc_file.fp = fopen(abs_file_name.c_str(), "w+t");
 
             upload_fds.insert(
                 std::pair<int, struct proc_file_t>(cli_fd, proc_file));
